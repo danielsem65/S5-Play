@@ -1,0 +1,64 @@
+name: Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install clang-cl
+        run: |
+          # clang-cl ships with VS 2022 on the runner
+          echo "VS installed, checking clang-cl..."
+          & "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\Llvm\bin\clang-cl.exe" --version
+
+      - name: Install Ninja
+        run: choco install ninja -y --no-progress
+
+      - name: Install Vulkan SDK
+        run: |
+          $installer = "$env:TEMP\VulkanSDK.exe"
+          Invoke-WebRequest -Uri "https://sdk.lunarg.com/sdk/download/1.3.296.0/windows/VulkanSDK-1.3.296.0-Installer.exe" -OutFile $installer
+          Start-Process -Wait -FilePath $installer -ArgumentList "--root C:\VulkanSDK --accept-licenses --default-answer --confirm-command install"
+          echo "VULKAN_SDK=C:\VulkanSDK" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Install Qt 6
+        run: |
+          pip install aqtinstall
+          aqt install-qt --outputdir C:\Qt windows desktop 6.7.3 win64_msvc2022_64
+          echo "Qt6_DIR=C:\Qt\6.7.3\msvc2022_64" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Configure CMake
+        run: |
+          $env:Qt6_DIR = "C:\Qt\6.7.3\msvc2022_64"
+          cmake -B build -G Ninja `
+            -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE `
+            -DCMAKE_C_COMPILER:FILEPATH="C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\Llvm\bin\clang-cl.exe" `
+            -DCMAKE_CXX_COMPILER:FILEPATH="C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\Llvm\bin\clang-cl.exe" `
+            -DCMAKE_PREFIX_PATH="C:\Qt\6.7.3\msvc2022_64"
+        working-directory: ${{ github.workspace }}
+
+      - name: Build
+        run: ninja -C build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: s5play-windows
+          path: |
+            build/src/kyty_emulator.exe
+            build/src/launcher/launcher.exe
+            build/src/*.dll
+          retention-days: 7
