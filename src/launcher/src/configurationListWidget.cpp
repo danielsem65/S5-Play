@@ -43,9 +43,9 @@
 
 #include "ui_configuration_list_widget.h"
 
-constexpr char CONF_FILE_NAME[]    = "Kyty.ini";
-constexpr char CONF_ORG_NAME[]     = "Kyty";
-constexpr char CONF_APP_NAME[]     = "Kyty";
+constexpr char CONF_FILE_NAME[]    = "S5Play.ini";
+constexpr char CONF_ORG_NAME[]     = "S5Play";
+constexpr char CONF_APP_NAME[]     = "S5Play";
 constexpr char CONF_SECTION_NAME[] = "GameConfigurations";
 constexpr char CONF_LAUNCHER[]     = "Launcher";
 constexpr char CONF_GAME_DIR[]     = "game_dir";

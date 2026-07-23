@@ -7,7 +7,7 @@
 
 S5 Play is a free and open-source PlayStation 5 emulator for Windows, built on C++20 with a Vulkan backend.
 
-Based on KytyPS5, which itself is a heavily modified fork of the original Kyty project.
+Based on KytyPS5 (a heavily modified fork of the original Kyty project), with upstream fixes and improvements merged regularly.
 
 > [!IMPORTANT]
 > S5 Play is not affiliated with Sony Interactive Entertainment or PlayStation. Use only game files
@@ -31,21 +31,21 @@ low performance.
   <tr>
     <td align="center">
       <strong>Disgaea 6</strong><br>
-      <img src="docs/screenshots/ps5-01.png" width="300" alt="Disgaea 6 running in KytyPS5">
+      <img src="docs/screenshots/ps5-01.png" width="300" alt="Disgaea 6 running in S5 Play">
     </td>
     <td align="center">
       <strong>Dreaming Sarah</strong><br>
-      <img src="docs/screenshots/ps5-03.png" width="300" alt="Dreaming Sarah running in KytyPS5">
+      <img src="docs/screenshots/ps5-03.png" width="300" alt="Dreaming Sarah running in S5 Play">
     </td>
   </tr>
   <tr>
     <td align="center">
       <strong>Minecraft Legends</strong><br>
-      <img src="docs/screenshots/ps5-04.png" width="300" alt="Minecraft Legends running in KytyPS5">
+      <img src="docs/screenshots/ps5-04.png" width="300" alt="Minecraft Legends running in S5 Play">
     </td>
     <td align="center">
       <strong>SILENT HILL: The Short Message</strong><br>
-      <img src="docs/screenshots/ps5-05.png" width="300" alt="SILENT HILL: The Short Message running in KytyPS5">
+      <img src="docs/screenshots/ps5-05.png" width="300" alt="SILENT HILL: The Short Message running in S5 Play">
     </td>
   </tr>
 </table>
@@ -109,7 +109,7 @@ Open a **Developer PowerShell for Visual Studio 2022** and run:
 
 git clone --recursive https://github.com/danielsem65/S5-Play.git
 cd S5-Play
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake -S src -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 ninja -C build
 ```
 

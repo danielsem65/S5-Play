@@ -23,7 +23,7 @@ namespace {
 
 constexpr char FILE_NAME[] = "compatibility_db.json";
 constexpr char URL[] =
-    "https://github.com/Nmzik/KytyPS5/releases/download/compat-db/compatibility_db.json";
+    "https://github.com/danielsem65/S5-Play/releases/download/compat-db/compatibility_db.json";
 constexpr int RETRY_COUNT    = 3;
 constexpr int RETRY_DELAY_MS = 750;
 
@@ -92,7 +92,7 @@ LoadResult DownloadOnce() {
 	QNetworkRequest       request(QUrl(QString::fromLatin1(URL)));
 	request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
 	                     QNetworkRequest::NoLessSafeRedirectPolicy);
-	request.setRawHeader("User-Agent", "Kyty-Launcher");
+	request.setRawHeader("User-Agent", "S5Play-Launcher");
 
 	auto*      reply = manager.get(request);
 	QEventLoop loop;

@@ -602,7 +602,7 @@ static void ProcessDisplayEvent(WindowGame& game, SDL_DisplayEvent display) {
 		case SDL_DISPLAYEVENT_ORIENTATION: sdl = true; [[fallthrough]];
 		case static_cast<Uint8>(DisplayOrientation::DisplayEventOrientation): {
 			LOGF("Display %" PRIu32 "[%s] changed orientation to %d - ", display.display,
-			     sdl ? "SDL" : "Kyty", static_cast<int>(display.data1));
+			     sdl ? "SDL" : "S5Play", static_cast<int>(display.data1));
 
 			switch (display.data1) {
 				case SDL_ORIENTATION_UNKNOWN: LOGF("UNKNOWN\n"); break;

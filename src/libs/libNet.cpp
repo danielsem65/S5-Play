@@ -1935,7 +1935,7 @@ static int KYTY_SYSV_ABI NpTrophy2GetGameInfo(int context, int handle,
 		std::memset(details, 0, sizeof(*details));
 		details->num_trophies = 1;
 		details->num_bronze   = 1;
-		NpTrophy2FillTitle(details->title, sizeof(details->title), "Kyty");
+		NpTrophy2FillTitle(details->title, sizeof(details->title), "S5 Play");
 	}
 	if (data != nullptr) {
 		std::memset(data, 0, sizeof(*data));

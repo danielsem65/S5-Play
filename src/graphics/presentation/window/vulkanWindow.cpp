@@ -794,9 +794,9 @@ void VulkanCreate(WindowContext& window) {
 	vk::ApplicationInfo app_info {};
 	app_info.sType              = vk::StructureType::eApplicationInfo;
 	app_info.pNext              = nullptr;
-	app_info.pApplicationName   = "Kyty";
+	app_info.pApplicationName   = "S5 Play";
 	app_info.applicationVersion = 1;
-	app_info.pEngineName        = "Kyty";
+	app_info.pEngineName        = "S5 Play";
 	app_info.engineVersion      = 1;
 	app_info.apiVersion         = VULKAN_TARGET_API_VERSION; // NOLINT
 

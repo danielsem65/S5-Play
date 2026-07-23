@@ -942,8 +942,8 @@ static void SelfTestSub64SharedPlaceholderAlias() {
 	    g_direct_memory_backing->MapExistingPlaceholderFixed(
 	        alias, PageSize, PageSize, VirtualMemory::Mode::ReadWrite, &failure_reason)) {
 		auto* ptr = reinterpret_cast<uint64_t*>(alias);
-		*ptr      = 0x4b59545953553634ull; // "KYTYSU64"
-		ok        = (*ptr == 0x4b59545953553634ull);
+		*ptr      = 0x5335504C41593634ull; // "S5PLAY64"
+		ok        = (*ptr == 0x5335504C41593634ull);
 		std::memset(ptr, 0, PageSize);
 
 		bool placeholder_preserved = false;

@@ -11,19 +11,36 @@ env:
   BUILD_TYPE: Release
 
 jobs:
-  build-windows:
+  build:
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install clang-cl
-        run: |
-          & "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\Llvm\bin\clang-cl.exe" --version
+      - name: Setup Visual Studio environment
+        uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Install Ninja
-        run: choco install ninja -y --no-progress
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: Install glslang
+        shell: pwsh
+        run: |
+          $vcpkgRoot = Split-Path (Get-Command vcpkg).Source
+          vcpkg install glslang[tools,opt]:x64-windows
+          "$vcpkgRoot\installed\x64-windows\tools\glslang" |
+            Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install Qt 6
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8.0"
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          cache: true
 
       - name: Install Vulkan SDK
         run: |
@@ -32,25 +49,29 @@ jobs:
           Start-Process -Wait -FilePath $installer -ArgumentList "--root C:\VulkanSDK --accept-licenses --default-answer --confirm-command install"
           echo "VULKAN_SDK=C:\VulkanSDK" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Install Qt 6
+      - name: Verify toolchain
+        shell: cmd
         run: |
-          pip install aqtinstall
-          aqt install-qt --outputdir C:\Qt windows desktop 6.5.3 win64_msvc2019_64
-          echo "Qt6_DIR=C:\Qt\6.5.3\msvc2019_64" | Out-File -FilePath $env:GITHUB_ENV -Append
+          cmake --version
+          ninja --version
+          clang-cl --version
+          glslangValidator --version
+          echo Qt6_DIR=%Qt6_DIR%
 
-      - name: Configure CMake
+      - name: Configure
+        shell: cmd
         run: |
-          cmake -S src -B build -G Ninja `
-            -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE `
-            -DCMAKE_C_COMPILER:FILEPATH="C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\Llvm\bin\clang-cl.exe" `
-            -DCMAKE_CXX_COMPILER:FILEPATH="C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\Llvm\bin\clang-cl.exe" `
-            -DCMAKE_PREFIX_PATH="C:\Qt\6.5.3\msvc2019_64"
-        working-directory: ${{ github.workspace }}
+          cmake -S src -B build -G Ninja ^
+            -DCMAKE_BUILD_TYPE=%BUILD_TYPE% ^
+            -DCMAKE_C_COMPILER=clang-cl ^
+            -DCMAKE_CXX_COMPILER=clang-cl ^
+            -DCMAKE_PREFIX_PATH="%Qt6_DIR%"
 
       - name: Build
+        shell: cmd
         run: ninja -C build
 
-      - name: Upload artifacts
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: s5play-windows
@@ -58,4 +79,4 @@ jobs:
             build/src/kyty_emulator.exe
             build/src/launcher/launcher.exe
             build/src/*.dll
-          retention-days: 7
+          if-no-files-found: error

@@ -4,7 +4,7 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 4.0)
 	set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "Minimum policy version for bundled dependencies")
 endif()
 
-project(Kyty)
+project(S5Play)
 
 if(CMAKE_SYSTEM_NAME MATCHES ".*Linux")
 	set(LINUX TRUE)
@@ -88,7 +88,7 @@ if (KYTY_LINKER STREQUAL LD AND NOT LINUX)
 	set(KYTY_LD_OPTIONS "-Wl,--image-base=0x100000000000")
 endif()
 
-project(Kyty${KYTY_PROJECT_NAME}${CMAKE_BUILD_TYPE}${KYTY_COMPILER} VERSION 0.2.2)
+project(S5Play${KYTY_PROJECT_NAME}${CMAKE_BUILD_TYPE}${KYTY_COMPILER} VERSION 0.2.2)
 
 include_directories(	
 	${KYTY_THIRD_PARTY_DIR}/gtest/include
@@ -108,13 +108,13 @@ configure_file(
 
 find_package(Git)
   
-add_custom_target( KytyGitVersion
+add_custom_target( S5PlayGitVersion
     COMMAND ${CMAKE_COMMAND} 
-	-D INPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/kytyGitVersion.h.in
-    -D OUTPUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/kytyGitVersion.h
+	-D INPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/s5playGitVersion.h.in
+    -D OUTPUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/s5playGitVersion.h
 	-D GIT_EXECUTABLE=${GIT_EXECUTABLE}
 	-P ${CMAKE_CURRENT_SOURCE_DIR}/generate_version.cmake
-	COMMENT "Generate kytyGitVersion.h"
+	COMMENT "Generate s5playGitVersion.h"
 )
 
 if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12.0.0)
@@ -363,7 +363,7 @@ elseif(WIN32 OR LINUX)
 	set_target_properties(kyty_emulator PROPERTIES LINK_FLAGS "${KYTY_LD_OPTIONS} -Wl,-Map=${KYTY_EMULATOR_MAP_LINK_PATH}")
 endif()
 
-add_dependencies(kyty_emulator KytyGitVersion)
+add_dependencies(kyty_emulator S5PlayGitVersion)
 
 install(TARGETS kyty_emulator DESTINATION .)
 if(KYTY_BUILD_LAUNCHER)

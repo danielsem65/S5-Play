@@ -87,14 +87,14 @@ static void SetupLogger() {
 
 	switch (g_direction) {
 		case Direction::Silent:
-			g_logger = MakeLogger("kyty", std::make_shared<spdlog::sinks::null_sink_mt>());
+			g_logger = MakeLogger("s5play", std::make_shared<spdlog::sinks::null_sink_mt>());
 			break;
 		case Direction::Console:
-			g_logger = MakeLogger("kyty", std::make_shared<spdlog::sinks::stdout_sink_mt>());
+			g_logger = MakeLogger("s5play", std::make_shared<spdlog::sinks::stdout_sink_mt>());
 			break;
 		case Direction::File:
 			if (!g_output_file.empty()) {
-				g_logger = MakeFileLogger("kyty", g_output_file);
+				g_logger = MakeFileLogger("s5play", g_output_file);
 			}
 			break;
 	}
