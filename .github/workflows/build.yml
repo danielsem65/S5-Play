@@ -37,17 +37,17 @@ jobs:
       - name: Install Qt 6
         run: |
           pip install aqtinstall
-          aqt install-qt --outputdir C:\Qt windows desktop 6.7.3 win64_msvc2022_64
-          echo "Qt6_DIR=C:\Qt\6.7.3\msvc2022_64" | Out-File -FilePath $env:GITHUB_ENV -Append
+          aqt list-qt windows desktop --modules 6.5.3 win64_msvc2022_64
+          aqt install-qt --outputdir C:\Qt windows desktop 6.5.3 win64_msvc2022_64
+          echo "Qt6_DIR=C:\Qt\6.5.3\msvc2022_64" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Configure CMake
         run: |
-          $env:Qt6_DIR = "C:\Qt\6.7.3\msvc2022_64"
           cmake -B build -G Ninja `
             -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE `
             -DCMAKE_C_COMPILER:FILEPATH="C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\Llvm\bin\clang-cl.exe" `
             -DCMAKE_CXX_COMPILER:FILEPATH="C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\Llvm\bin\clang-cl.exe" `
-            -DCMAKE_PREFIX_PATH="C:\Qt\6.7.3\msvc2022_64"
+            -DCMAKE_PREFIX_PATH="C:\Qt\6.5.3\msvc2022_64"
         working-directory: ${{ github.workspace }}
 
       - name: Build
