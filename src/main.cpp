@@ -8,7 +8,7 @@
 #include "common/stringUtils.h"
 #include "common/threads.h"
 #include "emulator.h"
-#include "kytyGitVersion.h"
+#include "s5playGitVersion.h"
 
 #include <cstdio>
 #include <fmt/format.h>
