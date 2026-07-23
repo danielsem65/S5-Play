@@ -2,123 +2,160 @@
 
 #include "common/assert.h"
 #include "graphics/guest_gpu/gpu_defs.h"
+#include "graphics/guest_gpu/gpu_format.h"
 #include "graphics/guest_gpu/tile.h"
+#include "graphics/host_gpu/gpuTiler.h"
 #include "graphics/host_gpu/graphicContext.h"
 #include "graphics/host_gpu/objects/textureCommon.h"
 #include "graphics/host_gpu/renderer/image.h"
-#include "graphics/host_gpu/utils.h"
+#include "graphics/host_gpu/transfer.h"
+
+#include <vector>
 
 namespace Libs::Graphics {
+namespace {
 
-void Tiler::DetileImage(GraphicContext* ctx, GpuTextureVulkanImage* image,
-                              const ImageInfo& info, const BufferImageCopySource& source,
-                              bool refresh, bool storage) const {
-	if (ctx == nullptr || image == nullptr || info.address == 0 || info.size == 0 ||
-	    info.width == 0 || info.height == 0 || info.depth == 0 || info.levels == 0 ||
-	    info.levels >= 16 || !source.cpu_current || source.address != info.address ||
-	    source.size != info.size || (source.buffer == nullptr && source.offset != 0)) {
-		EXIT("Tiler: unsupported sampled-image detile, ctx=%p image=%p source_buffer=%p "
-		     "source=0x%016" PRIx64 "+0x%016" PRIx64 " offset=0x%016" PRIx64
-		     " current=%d image=0x%016" PRIx64 "+0x%016" PRIx64
-		     " extent=%ux%ux%u levels=%u tile=%u storage=%d\n",
-		     static_cast<const void*>(ctx), static_cast<const void*>(image),
-		     static_cast<const void*>(source.buffer), source.address, source.size, source.offset,
-		     source.cpu_current, info.address, info.size, info.width, info.height, info.depth,
-		     info.levels, info.tile, storage);
+struct DepthTransfer {
+	std::vector<GpuTileInfo>     infos;
+	std::vector<BufferImageCopy> regions;
+};
+
+DepthTransfer MakeDepthTransfer(uint64_t size, uint32_t layers, uint32_t format,
+                                uint32_t bytes_per_element, uint32_t width, uint32_t height,
+                                uint32_t pitch, uint32_t base_layer, vk::ImageAspectFlags aspect) {
+	EXIT_IF(size == 0 || layers == 0 || size % layers != 0);
+	TileBlockLayout block {};
+	EXIT_NOT_IMPLEMENTED(
+	    !TileGetBlockLayout(TileBlockFamily::Depth64KB, bytes_per_element, block) ||
+	    Prospero::NumBytesPerElement(format) != bytes_per_element);
+
+	const uint64_t slice_size = size / layers;
+	DepthTransfer  transfer;
+	transfer.infos.reserve(layers);
+	transfer.regions.reserve(layers);
+	for (uint32_t layer = 0; layer < layers; layer++) {
+		const uint64_t offset = slice_size * layer;
+		GpuTileInfo    info {block.family,
+		                     block.bytes_per_element,
+		                     offset,
+		                     slice_size,
+		                     offset,
+		                     slice_size,
+		                     0,
+		                     width,
+		                     height,
+		                     1,
+		                     pitch};
+		info.surface_z = base_layer + layer;
+		transfer.infos.push_back(info);
+
+		BufferImageCopy region {};
+		region.offset    = static_cast<uint32_t>(offset);
+		region.pitch     = pitch;
+		region.width     = width;
+		region.height    = height;
+		region.dst_layer = base_layer + layer;
+		region.aspect    = aspect;
+		transfer.regions.push_back(region);
 	}
-	if (refresh) {
-		VulkanDeviceWaitIdle(ctx);
+	return transfer;
+}
+
+void UploadDepth(DepthStencilVulkanImage& image, uint64_t source_address, uint64_t size,
+                 uint32_t layers, uint32_t format, uint32_t bytes_per_element, uint32_t width,
+                 uint32_t height, uint32_t pitch, uint32_t base_layer,
+                 vk::ImageAspectFlags aspect) {
+	auto transfer = MakeDepthTransfer(size, layers, format, bytes_per_element, width, height, pitch,
+	                                  base_layer, aspect);
+	Transfer::UploadTiledImage(image, reinterpret_cast<const void*>(source_address), size, size,
+	                           transfer.infos, transfer.regions,
+	                           vk::ImageLayout::eDepthStencilAttachmentOptimal);
+}
+
+template <uint32_t (*Encode)(uint16_t)>
+void UploadPromotedD16Depth(DepthStencilVulkanImage& image, const DepthTargetInfo& info,
+                            const BufferImageCopySource& source, uint32_t base_layer) {
+	const uint64_t guest_slice_size = info.size / info.layers;
+	const uint64_t texels           = static_cast<uint64_t>(info.pitch) * info.height;
+	const uint64_t host_slice_size  = texels * sizeof(uint32_t);
+	const uint64_t host_upload_size = host_slice_size * info.layers;
+	EXIT_IF(host_upload_size > UINT32_MAX);
+
+	auto transfer = MakeDepthTransfer(info.size, info.layers, info.guest_format,
+	                                  info.bytes_per_element, info.width, info.height, info.pitch,
+	                                  base_layer, vk::ImageAspectFlagBits::eDepth);
+	std::vector<uint16_t> guest_linear(info.size / sizeof(uint16_t));
+	GpuDetile(reinterpret_cast<const void*>(source.address), guest_linear.data(), info.size,
+	          info.size, transfer.infos);
+
+	Transfer::ScratchBuffer host_linear(host_upload_size);
+	for (uint32_t layer = 0; layer < info.layers; layer++) {
+		const auto* guest = guest_linear.data() + guest_slice_size / sizeof(uint16_t) * layer;
+		auto*       host  = reinterpret_cast<uint32_t*>(static_cast<uint8_t*>(host_linear.Data()) +
+		                                                host_slice_size * layer);
+		for (uint64_t texel = 0; texel < texels; texel++) {
+			host[texel] = Encode(guest[texel]);
+		}
+		transfer.regions[layer].offset = static_cast<uint32_t>(host_slice_size * layer);
 	}
+	Transfer::UploadImage(image, host_linear.Data(), host_upload_size, transfer.regions,
+	                      vk::ImageLayout::eDepthStencilAttachmentOptimal);
+}
+
+} // namespace
+
+void Tiler::DetileImage(GpuTextureVulkanImage& image, const ImageInfo& info,
+                        const BufferImageCopySource& source, bool refresh, bool storage) const {
+	if (refresh) Transfer::WaitForQueueIdle();
+
 	const bool array_texture  = TextureIsLayeredTexture(info.type);
 	const bool volume_texture = TextureIs3DTexture(info.type);
 	auto       layout         = TextureCalcUploadLayout(
 	    info.format, info.width, info.height, info.levels, info.depth, info.pitch, info.tile,
-	    info.size, true, false, volume_texture, storage ? "StorageTextureCache" : "TextureCache");
-	const auto slice_layout = TextureUploadSliceLayout::MipChainPerSlice;
-	auto regions = TextureBuildUploadRegions(layout, image->format, info.width, info.height,
+	    info.size, true, volume_texture, storage ? "StorageTextureCache" : "TextureCache");
+	auto regions = TextureBuildUploadRegions(layout, image.format, info.width, info.height,
 	                                         info.depth, info.levels, array_texture, volume_texture,
-	                                         TextureUploadDestination::MipLevels, slice_layout);
-	// Keep the buffer owner explicit at the detiling seam. The current PS5
-	// backend consumes the coherent guest publication; a GPU detiler can consume source.buffer and
-	// source.offset here without changing TextureCache ownership or alias classification.
-	TextureUploadGuestImage(
-	    ctx, image, reinterpret_cast<const void*>(source.address), info.size, regions, layout,
-	    info.format, info.width, info.height, info.depth, info.levels, slice_layout,
-	    storage ? "StorageTextureCache" : "TextureCache",
-	    static_cast<uint64_t>(storage ? VK_IMAGE_LAYOUT_GENERAL
-	                                  : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
+	                                         TextureUploadDestination::MipLevels);
+	TextureUploadGuestImage(image, reinterpret_cast<const void*>(source.address), info.size,
+	                        regions, layout, info.format, info.width, info.height, info.depth,
+	                        info.levels, storage ? "StorageTextureCache" : "TextureCache",
+	                        storage ? vk::ImageLayout::eGeneral
+	                                : vk::ImageLayout::eShaderReadOnlyOptimal);
 }
 
-void Tiler::DetileImage(GraphicContext* ctx, DepthStencilVulkanImage* image,
-                              const DepthTargetInfo& info, const BufferImageCopySource& source,
-                              bool refresh) const {
-	const bool d16 = info.guest_format == Prospero::GpuEnumValue(Prospero::BufferFormat::k16UNorm) &&
-	                 info.format == VK_FORMAT_D16_UNORM && info.bytes_per_element == 2;
-	const bool d32 =
-	    info.guest_format == Prospero::GpuEnumValue(Prospero::BufferFormat::k32Float) &&
-	    (info.format == VK_FORMAT_D32_SFLOAT || info.format == VK_FORMAT_D32_SFLOAT_S8_UINT) &&
-	    info.bytes_per_element == 4;
-	if (ctx == nullptr || image == nullptr || info.address == 0 || info.size == 0 ||
-	    info.width == 0 || info.height == 0 || info.pitch < info.width ||
-	    info.tile_mode != Prospero::GpuEnumValue(Prospero::TileMode::kDepth) || (!d16 && !d32) ||
-	    !source.cpu_current || source.address != info.address || source.size != info.size ||
-	    (source.buffer == nullptr && source.offset != 0)) {
-		EXIT("Tiler: unsupported depth detile, ctx=%p image=%p source_buffer=%p "
-		     "source=0x%016" PRIx64 "+0x%016" PRIx64 " offset=0x%016" PRIx64
-		     " current=%d depth=0x%016" PRIx64 "+0x%016" PRIx64
-		     " extent=%ux%u pitch=%u tile=%u format=%d guest_format=%u bpe=%u\n",
-		     static_cast<const void*>(ctx), static_cast<const void*>(image),
-		     static_cast<const void*>(source.buffer), source.address, source.size, source.offset,
-		     source.cpu_current, info.address, info.size, info.width, info.height, info.pitch,
-		     info.tile_mode, static_cast<int>(info.format), info.guest_format,
-		     info.bytes_per_element);
+void Tiler::DetileImage(DepthStencilVulkanImage& image, const DepthTargetInfo& info,
+                        const BufferImageCopySource& source, bool refresh,
+                        uint32_t base_layer) const {
+	EXIT_NOT_IMPLEMENTED(info.samples != 1 || image.samples != 1);
+	if (refresh) Transfer::WaitForQueueIdle();
+
+	if (DepthAspectTransferBytes(info.format) != info.bytes_per_element) {
+		switch (info.format) {
+			case vk::Format::eD24UnormS8Uint:
+				UploadPromotedD16Depth<EncodeD16AsD24>(image, info, source, base_layer);
+				return;
+			case vk::Format::eD32SfloatS8Uint:
+				UploadPromotedD16Depth<EncodeD16AsD32>(image, info, source, base_layer);
+				return;
+			default: EXIT_NOT_IMPLEMENTED(true);
+		}
 	}
-	if (refresh) {
-		VulkanDeviceWaitIdle(ctx);
-	}
-	UtilScratchBuffer linear(info.size);
-	TileConvertTiledToLinearDepth(linear.Data(), reinterpret_cast<const void*>(source.address),
-	                              info.guest_format, info.width, info.height, info.pitch,
-	                              info.size);
-	UtilFillDepthImage(ctx, image, linear.Data(), info.size, info.pitch);
+	UploadDepth(image, source.address, info.size, info.layers, info.guest_format,
+	            info.bytes_per_element, info.width, info.height, info.pitch, base_layer,
+	            vk::ImageAspectFlagBits::eDepth);
 }
 
-void Tiler::TileImage(void* dst, const void* src, const RenderTargetInfo& info) const {
-	const bool supported_element = info.bytes_per_element == 1 || info.bytes_per_element == 2 ||
-	                               info.bytes_per_element == 4 || info.bytes_per_element == 8;
-	if (dst == nullptr || src == nullptr || info.address == 0 || info.size == 0 ||
-	    info.width == 0 || info.height == 0 || info.pitch < info.width ||
-	    info.tile_mode != Prospero::GpuEnumValue(Prospero::TileMode::kRenderTarget) || info.levels != 1 ||
-	    !supported_element) {
-		EXIT("Tiler: unsupported render-target tile, dst=%p src=%p "
-		     "addr=0x%016" PRIx64 "+0x%016" PRIx64
-		     " extent=%ux%u pitch=%u levels=%u tile=%u bpe=%u\n",
-		     dst, src, info.address, info.size, info.width, info.height, info.pitch, info.levels,
-		     info.tile_mode, info.bytes_per_element);
-	}
-	TileConvertLinearToTiledRenderTarget(dst, src, info.width, info.height, info.pitch,
-	                                     info.bytes_per_element, info.size);
-}
+void Tiler::DetileStencil(DepthStencilVulkanImage& image, const DepthTargetInfo& info,
+                          const BufferImageCopySource& source, bool refresh,
+                          uint32_t base_layer) const {
+	EXIT_NOT_IMPLEMENTED(info.samples != 1 || image.samples != 1);
+	if (refresh) Transfer::WaitForQueueIdle();
 
-void Tiler::TileImage(void* dst, const void* src, const DepthTargetInfo& info) const {
-	const bool supported_format =
-	    (info.guest_format == Prospero::GpuEnumValue(Prospero::BufferFormat::k16UNorm) &&
-	     info.format == VK_FORMAT_D16_UNORM && info.bytes_per_element == 2) ||
-	    (info.guest_format == Prospero::GpuEnumValue(Prospero::BufferFormat::k32Float) &&
-	     info.format == VK_FORMAT_D32_SFLOAT && info.bytes_per_element == 4);
-	if (dst == nullptr || src == nullptr || info.address == 0 || info.size == 0 ||
-	    info.stencil_address != 0 || info.stencil_size != 0 || info.width == 0 ||
-	    info.height == 0 || info.pitch < info.width ||
-	    info.tile_mode != Prospero::GpuEnumValue(Prospero::TileMode::kDepth) || !supported_format) {
-		EXIT("Tiler: unsupported depth-target tile, dst=%p src=%p "
-		     "depth=0x%016" PRIx64 "+0x%016" PRIx64 " stencil=0x%016" PRIx64 "+0x%016" PRIx64
-		     " extent=%ux%u pitch=%u tile=%u format=%d guest_format=%u bpe=%u\n",
-		     dst, src, info.address, info.size, info.stencil_address, info.stencil_size, info.width,
-		     info.height, info.pitch, info.tile_mode, static_cast<int>(info.format),
-		     info.guest_format, info.bytes_per_element);
-	}
-	TileConvertLinearToTiledDepth(dst, src, info.guest_format, info.width, info.height, info.pitch,
-	                              info.size);
+	const auto format = Prospero::GpuEnumValue(Prospero::BufferFormat::k8UInt);
+	const auto pitch  = TileGetTexturePitch(format, info.width, 1,
+	                                        Prospero::GpuEnumValue(Prospero::TileMode::kDepth));
+	UploadDepth(image, source.address, info.stencil_size, info.layers, format, 1, info.width,
+	            info.height, pitch, base_layer, vk::ImageAspectFlagBits::eStencil);
 }
 
 } // namespace Libs::Graphics

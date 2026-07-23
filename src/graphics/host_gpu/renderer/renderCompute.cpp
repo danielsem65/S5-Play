@@ -1,7 +1,3 @@
-#include "graphics/host_gpu/renderer/render.h"
-
-#include "graphics/host_gpu/renderer/renderInternal.h"
-
 #include "common/assert.h"
 #include "common/common.h"
 #include "common/emulatorConfig.h"
@@ -16,14 +12,18 @@
 #include "graphics/guest_gpu/tile.h"
 #include "graphics/host_gpu/graphicContext.h"
 #include "graphics/host_gpu/objects/label.h"
+#include "graphics/host_gpu/renderer/depthRenderTarget.h"
 #include "graphics/host_gpu/renderer/descriptorCache.h"
+#include "graphics/host_gpu/renderer/descriptors.h"
 #include "graphics/host_gpu/renderer/framebufferCache.h"
+#include "graphics/host_gpu/renderer/imageInfo.h"
 #include "graphics/host_gpu/renderer/pipelineCache.h"
+#include "graphics/host_gpu/renderer/render.h"
 #include "graphics/host_gpu/renderer/renderContext.h"
-#include "graphics/host_gpu/renderer/renderState.h"
 #include "graphics/host_gpu/renderer/shaderResourceBarrier.h"
 #include "graphics/host_gpu/renderer/shaderSubgroup.h"
-#include "graphics/host_gpu/utils.h"
+#include "graphics/host_gpu/transfer.h"
+#include "graphics/host_gpu/vulkanCommon.h"
 #include "graphics/shader/recompiler/ResourceMaterialization.h"
 #include "graphics/shader/recompiler/ShaderIR.h"
 #include "graphics/shader/shader.h"
@@ -39,9 +39,6 @@
 #include <span>
 #include <unordered_map>
 #include <vector>
-#include <vulkan/vk_enum_string_helper.h>
-
-// IWYU pragma: no_forward_declare VkImageView_T
 
 namespace Libs::Graphics {
 static uint64_t BufferDescriptorSize(const ShaderBufferResource& descriptor) {
@@ -54,22 +51,14 @@ static uint64_t BufferDescriptorSize(const ShaderBufferResource& descriptor) {
 }
 
 bool ResolveHtileClearTarget(const HW::DepthRenderTarget& z, uint64_t descriptor_size,
-                             HtileClearTarget* resolved) {
-	if (resolved == nullptr) {
-		return false;
-	}
-	*resolved = {};
+                             HtileClearTarget& resolved) {
+	resolved = {};
 	const bool has_stencil =
 	    z.stencil_info.format != Prospero::GpuEnumValue(Prospero::StencilFormat::kInvalid);
-	const bool depth_format_supported =
-	    z.z_info.format == Prospero::GpuEnumValue(Prospero::DepthFormat::kZ16) ||
-	    z.z_info.format == Prospero::GpuEnumValue(Prospero::DepthFormat::kZ32F);
-	const bool msaa_compat = depth_msaa_single_sample_compatible(z.z_info.num_samples);
-	const bool supported_depth_state =
-	    z.z_info.tile_surface_enable && depth_format_supported &&
-	    !(z.z_info.format == Prospero::GpuEnumValue(Prospero::DepthFormat::kZ16) && has_stencil) &&
-	    z.z_info.tile_mode_index == 0 && (z.z_info.num_samples == 0 || msaa_compat) &&
-	    z.z_info.zrange_precision <= 1 && !z.z_info.expclear_enabled &&
+	const auto* depth_policy = FindDepthFormatPolicy(z.z_info.format);
+	const bool  supported_depth_state =
+	    z.z_info.tile_surface_enable && depth_policy != nullptr && z.z_info.tile_mode_index == 0 &&
+	    z.z_info.num_samples <= 3 && z.z_info.zrange_precision <= 1 && !z.z_info.expclear_enabled &&
 	    !z.z_info.embedded_sample_locations && !z.z_info.partially_resident &&
 	    z.z_info.num_mip_levels == 0 && z.z_info.plane_compression == 0 &&
 	    z.depth_view.current_mip_level == 0 && z.depth_view.slice_start == 0 &&
@@ -106,16 +95,8 @@ bool ResolveHtileClearTarget(const HW::DepthRenderTarget& z, uint64_t descriptor
 	    !supported_addresses) {
 		return false;
 	}
-	if (msaa_compat) {
-		static std::atomic<uint32_t> logged_fragments = 0;
-		const uint32_t               bit              = 1u << z.z_info.num_samples;
-		if ((logged_fragments.fetch_or(bit, std::memory_order_relaxed) & bit) == 0) {
-			LOGF("HTileClear: compatibility: treating PS5 %ux depth fragments as single-sample\n",
-			     bit);
-		}
-	}
 
-	const bool size_xy_valid = z.size.valid && (z.size.x_max != 0 || z.size.y_max != 0);
+	const bool size_xy_valid = z.size.valid;
 	const bool wh_valid      = z.width_height_valid && z.width != 0 && z.height != 0;
 	if (!size_xy_valid && !wh_valid) {
 		// Prospero emits an exact full-surface metadata descriptor even
@@ -128,7 +109,7 @@ bool ResolveHtileClearTarget(const HW::DepthRenderTarget& z, uint64_t descriptor
 		if (!descriptor_backed_state) {
 			return false;
 		}
-		*resolved = {.address = z.htile_data_base_addr, .size = descriptor_size};
+		resolved = {.address = z.htile_data_base_addr, .size = descriptor_size};
 		return true;
 	}
 	const uint32_t width  = size_xy_valid ? static_cast<uint32_t>(z.size.x_max) + 1u : z.width;
@@ -139,41 +120,11 @@ bool ResolveHtileClearTarget(const HW::DepthRenderTarget& z, uint64_t descriptor
 	     (z.pitch_div8_minus1 != 0 || z.height_div8_minus1 != 0 || z.slice_div64_minus1 != 0))) {
 		return false;
 	}
-
-	const bool     z16 = z.z_info.format == Prospero::GpuEnumValue(Prospero::DepthFormat::kZ16);
-	const uint32_t guest_format = Prospero::GpuEnumValue(z16 ? Prospero::BufferFormat::k16UNorm
-	                                                         : Prospero::BufferFormat::k32Float);
-	const uint32_t bytes        = z16 ? 2u : 4u;
-	const uint32_t pitch = TileGetTexturePitch(guest_format, width, 1,
-	                                           Prospero::GpuEnumValue(Prospero::TileMode::kDepth));
-	if (z.pitch_height_valid && ((static_cast<uint64_t>(z.pitch_div8_minus1) + 1u) * 8u != pitch ||
-	                             (static_cast<uint64_t>(z.height_div8_minus1) + 1u) * 8u !=
-	                                 ((static_cast<uint64_t>(height) + 7u) & ~7ull))) {
+	TileSizeAlign htile_size {};
+	if (!TileGetHtileSize(width, height, htile_size) || htile_size.size != descriptor_size) {
 		return false;
 	}
-	const uint32_t block_width = z16 ? 256u : 128u;
-	const uint64_t padded_width =
-	    (static_cast<uint64_t>(pitch) + block_width - 1u) & ~(block_width - 1u);
-	const uint64_t padded_height = (static_cast<uint64_t>(height) + 127u) & ~127ull;
-	if (padded_width > UINT64_MAX / padded_height ||
-	    padded_width * padded_height > UINT64_MAX / bytes) {
-		return false;
-	}
-	const uint64_t expected_depth_size = padded_width * padded_height * bytes;
-	TileSizeAlign  depth_size {};
-	TileSizeAlign  stencil_size {};
-	TileSizeAlign  htile_size {};
-	if (!TileGetDepthSize(width, height, 0, z.z_info.format, z.stencil_info.format, true,
-	                      &stencil_size, &htile_size, &depth_size) ||
-	    expected_depth_size == 0 || expected_depth_size > UINT32_MAX || depth_size.align != 65536 ||
-	    depth_size.size != expected_depth_size ||
-	    (has_stencil != (stencil_size.align == 65536 && stencil_size.size != 0)) ||
-	    htile_size.align != 32768 || htile_size.size == 0 || htile_size.size != descriptor_size ||
-	    (z.pitch_height_valid &&
-	     (static_cast<uint64_t>(z.slice_div64_minus1) + 1u) * 64u != expected_depth_size)) {
-		return false;
-	}
-	*resolved = {.address = z.htile_data_base_addr, .size = htile_size.size};
+	resolved = {.address = z.htile_data_base_addr, .size = htile_size.size};
 	return true;
 }
 
@@ -200,21 +151,23 @@ static void ValidateFullHtileClearDispatch(const ShaderComputeInputInfo& input,
 	}
 }
 
-static bool TryConsumeComputeMetaClear(const ShaderComputeInputInfo& input, const HW::Context& ctx,
-                                       uint32_t group_x, uint32_t group_y, uint32_t group_z,
-                                       uint32_t mode) {
+static bool TryConsumeComputeMetaClear(const ShaderComputeInputInfo& input,
+                                       const RenderCommandBuffer& buffer, uint32_t group_x,
+                                       uint32_t group_y, uint32_t group_z, uint32_t mode) {
+	const auto& ctx       = buffer.GetRegisters();
 	const auto& program   = *input.stage.program;
 	const auto& resources = *input.stage.resources;
 	if (resources.buffers.size() != program.info.buffers.size()) {
 		EXIT("compute runtime buffer count does not match shader metadata\n");
 	}
-	const auto&      z                   = ctx.GetDepthRenderTarget();
-	const uint64_t   meta_addr           = z.htile_data_base_addr;
-	auto*            cache               = g_render_ctx->GetTextureCache();
-	uint32_t         current_references  = 0;
-	uint32_t         registered_writes   = 0;
-	uint64_t         described_meta_size = 0;
-	HtileClearTarget registered_target {};
+	const auto&                 z                   = ctx.GetDepthRenderTarget();
+	const uint64_t              meta_addr           = z.htile_data_base_addr;
+	auto&                       cache               = GetRenderContext().GetTextureCache();
+	uint32_t                    current_references  = 0;
+	uint32_t                    registered_writes   = 0;
+	uint64_t                    described_meta_size = 0;
+	HtileClearTarget            registered_target {};
+	TextureCache::MetaRangeInfo registered_meta {};
 	for (uint32_t i = 0; i < program.info.buffers.size(); i++) {
 		const auto& resource   = program.info.buffers[i];
 		const auto  descriptor = DecodeNativeDescriptor<ShaderBufferResource>(resources.buffers[i]);
@@ -225,9 +178,12 @@ static bool TryConsumeComputeMetaClear(const ShaderComputeInputInfo& input, cons
 		}
 		// An exact registered metadata range remains
 		// identifiable even when it is no longer the currently bound depth target.
-		if (resource.written && cache->IsMetaRange(descriptor.Base48(), descriptor_size)) {
+		TextureCache::MetaRangeInfo resolved_meta {};
+		if (resource.written &&
+		    cache.ResolveMetaRange(descriptor.Base48(), descriptor_size, resolved_meta)) {
 			registered_writes++;
 			registered_target = {.address = descriptor.Base48(), .size = descriptor_size};
+			registered_meta   = resolved_meta;
 		}
 	}
 	if (current_references == 0 && registered_writes == 0) {
@@ -239,14 +195,27 @@ static bool TryConsumeComputeMetaClear(const ShaderComputeInputInfo& input, cons
 	}
 	HtileClearTarget target {};
 	if (current_references != 0) {
-		if (!ResolveHtileClearTarget(z, described_meta_size, &target)) {
-			EXIT("unsupported HTile compute-clear target state\n");
+		if (!ResolveHtileClearTarget(z, described_meta_size, target)) {
+			EXIT("unsupported HTile compute-clear target state: current=%u registered=%u "
+			     "meta=0x%016" PRIx64 "+0x%016" PRIx64 " depth=0x%016" PRIx64 "/0x%016" PRIx64
+			     " stencil=0x%016" PRIx64 "/0x%016" PRIx64
+			     " extent=%d:%ux%u wh=%d:%ux%u pitch=%d:%u/%u/%u zfmt=%u sfmt=%u samples=%u\n",
+			     current_references, registered_writes, meta_addr, described_meta_size,
+			     z.z_read_base_addr, z.z_write_base_addr, z.stencil_read_base_addr,
+			     z.stencil_write_base_addr, z.size.valid, static_cast<uint32_t>(z.size.x_max) + 1u,
+			     static_cast<uint32_t>(z.size.y_max) + 1u, z.width_height_valid, z.width, z.height,
+			     z.pitch_height_valid, z.pitch_div8_minus1, z.height_div8_minus1,
+			     z.slice_div64_minus1, z.z_info.format, z.stencil_info.format,
+			     z.z_info.num_samples);
 		}
-		cache->RegisterMeta(target.address, target.size);
+		cache.RegisterMeta(target.address, target.size);
+		if (!cache.ResolveMetaRange(target.address, target.size, registered_meta)) {
+			EXIT("failed to resolve registered HTile compute-clear range\n");
+		}
 	} else {
 		target = registered_target;
 	}
-	g_render_ctx->GetBufferCache()->ValidateGpuAccess(target.address, target.size, false, true);
+	GetRenderContext().GetBufferCache().ValidateGpuAccess(target.address, target.size, false, true);
 
 	uint32_t             metadata_writes = 0;
 	ShaderBufferResource metadata_descriptor {};
@@ -273,42 +242,31 @@ static bool TryConsumeComputeMetaClear(const ShaderComputeInputInfo& input, cons
 			continue;
 		}
 		if (resource.written || !resource.read || resource.atomic || descriptor.Base48() == 0 ||
-		    descriptor_size == 0 || cache->HasMetaOverlap(descriptor.Base48(), descriptor_size)) {
+		    descriptor_size == 0 ||
+		    cache.QueryRegion(descriptor.Base48(), descriptor_size).metadata_pages) {
 			EXIT("unsupported HTile clear side-buffer access\n");
 		}
-		g_render_ctx->GetBufferCache()->ValidateGpuAccess(descriptor.Base48(), descriptor_size,
-		                                                  true, false);
+		GetRenderContext().GetBufferCache().ValidateGpuAccess(descriptor.Base48(), descriptor_size,
+		                                                      true, false);
 	}
 	if (metadata_writes != 1) {
 		EXIT("HTile clear requires exactly one write-only metadata buffer, writes=%u\n",
 		     metadata_writes);
 	}
 	ValidateFullHtileClearDispatch(input, metadata_descriptor, group_x, group_y, group_z, mode);
-	if (!cache->ClearMeta(target.address)) {
+	const bool recorded = registered_meta.full ? cache.ClearMeta(registered_meta.metadata_address)
+	                                           : cache.TouchMeta(registered_meta.metadata_address,
+	                                                             registered_meta.slice, true);
+	if (!recorded) {
 		EXIT("failed to record HTile compute clear\n");
-	}
-	const bool descriptor_backed =
-	    current_references != 0 && !z.size.valid && !z.width_height_valid && !z.pitch_height_valid;
-	const uint32_t source_bit = current_references == 0 ? 1u : descriptor_backed ? 2u : 4u;
-	static std::atomic<uint32_t> logged_sources {0};
-	if ((logged_sources.fetch_or(source_bit, std::memory_order_relaxed) & source_bit) == 0) {
-		LOGF("HTileClear: native virtual clear source=%s shader=0x%016" PRIx64 " addr=0x%016" PRIx64
-		     " size=0x%016" PRIx64 "\n",
-		     current_references == 0 ? "registered"
-		     : descriptor_backed     ? "descriptor"
-		                             : "derived",
-		     program.shader_hash, target.address, target.size);
 	}
 	return true;
 }
 
 bool ResolveComputeImageClear(const ShaderComputeInputInfo& input, uint32_t group_x,
                               uint32_t group_y, uint32_t group_z, uint32_t mode,
-                              ShaderBufferResource* resolved_descriptor, uint32_t* resolved_clear,
-                              uint64_t* resolved_size) {
-	if (resolved_descriptor == nullptr || resolved_clear == nullptr || resolved_size == nullptr) {
-		return false;
-	}
+                              ShaderBufferResource& resolved_descriptor, uint32_t& resolved_clear,
+                              uint64_t& resolved_size) {
 	const auto& program   = *input.stage.program;
 	const auto& resources = *input.stage.resources;
 	if (program.info.buffers.size() != 1 || resources.buffers.size() != 1 ||
@@ -350,26 +308,24 @@ bool ResolveComputeImageClear(const ShaderComputeInputInfo& input, uint32_t grou
 	if (!full_dispatch || size == 0) {
 		return false;
 	}
-	*resolved_descriptor = descriptor;
-	*resolved_clear      = clear;
-	*resolved_size       = size;
+	resolved_descriptor = descriptor;
+	resolved_clear      = clear;
+	resolved_size       = size;
 	return true;
 }
 
-static bool TryConsumeComputeImageClear(const ShaderComputeInputInfo& input, CommandBuffer* command,
+static bool TryConsumeComputeImageClear(const ShaderComputeInputInfo& input, CommandBuffer& command,
                                         uint32_t group_x, uint32_t group_y, uint32_t group_z,
                                         uint32_t mode) {
 	ShaderBufferResource descriptor;
 	uint32_t             packed_clear = 0;
 	uint64_t             size         = 0;
-	if (!ResolveComputeImageClear(input, group_x, group_y, group_z, mode, &descriptor,
-	                              &packed_clear, &size)) {
+	if (!ResolveComputeImageClear(input, group_x, group_y, group_z, mode, descriptor, packed_clear,
+	                              size)) {
 		return false;
 	}
-	auto* cache = g_render_ctx->GetTextureCache();
-	if (!cache->ClearColorImageFromBuffer(command, descriptor.Base48(), size, packed_clear) &&
-	    !cache->ClearDepthImageFromBuffer(command, descriptor.Base48(), size, packed_clear) &&
-	    !cache->ClearStencilImageFromBuffer(command, descriptor.Base48(), size, packed_clear)) {
+	auto& cache = GetRenderContext().GetTextureCache();
+	if (!cache.ClearImageFromBuffer(command, descriptor.Base48(), size, packed_clear)) {
 		return false;
 	}
 	static std::atomic<uint32_t> logged_clears {0};
@@ -381,28 +337,26 @@ static bool TryConsumeComputeImageClear(const ShaderComputeInputInfo& input, Com
 	return true;
 }
 
-void RenderDispatchDirect(uint64_t submit_id, CommandBuffer* buffer, HW::Context* ctx,
-                          HW::Shader* sh_ctx, uint32_t thread_group_x, uint32_t thread_group_y,
-                          uint32_t thread_group_z, uint32_t mode) {
-	EXIT_IF(ctx == nullptr);
-	EXIT_IF(g_render_ctx == nullptr);
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
+void RenderDispatchDirect(uint64_t submit_id, RenderCommandBuffer& buffer, uint32_t thread_group_x,
+                          uint32_t thread_group_y, uint32_t thread_group_z, uint32_t mode) {
+	EXIT_IF(buffer.IsInvalid());
+	auto& ctx    = buffer.GetRegisters();
+	auto& sh_ctx = buffer.GetShaders();
 
-	buffer->SetDebugInfo(static_cast<uint32_t>(CommandBufferDebugOp::DispatchDirect), submit_id,
-	                     thread_group_x, thread_group_y, thread_group_z, mode,
-	                     sh_ctx != nullptr ? sh_ctx->GetCs().cs_regs.data_addr : 0);
+	buffer.SetDebugInfo(static_cast<uint32_t>(CommandBufferDebugOp::DispatchDirect), submit_id,
+	                    thread_group_x, thread_group_y, thread_group_z, mode,
+	                    sh_ctx.GetCs().cs_regs.data_addr);
 
-	Common::LockGuard lock(g_render_ctx->GetMutex());
+	Common::LockGuard lock(GetRenderContext().GetMutex());
 
-	if (sh_ctx->GetCs().cs_regs.data_addr == 0) {
+	if (sh_ctx.GetCs().cs_regs.data_addr == 0) {
 		LOGF("GraphicsRenderDispatchDirect: temporary: ignoring dispatch with null CS shader, "
 		     "groups=%ux%ux%u mode=%u\n",
 		     thread_group_x, thread_group_y, thread_group_z, mode);
 		return;
 	}
 
-	if (!ShaderAddressValid(sh_ctx->GetCs().cs_regs.data_addr)) {
+	if (!ShaderAddressValid(sh_ctx.GetCs().cs_regs.data_addr)) {
 		return;
 	}
 
@@ -419,17 +373,17 @@ void RenderDispatchDirect(uint64_t submit_id, CommandBuffer* buffer, HW::Context
 			LOGF("GraphicsRenderDispatchDirect: unknown dispatch initiator bits "
 			     "mode=0x%08" PRIx32 " unknown=0x%08" PRIx32 " shader=0x%016" PRIx64
 			     " groups=%ux%ux%u\n",
-			     mode, unknown_mode_bits, sh_ctx->GetCs().cs_regs.data_addr, thread_group_x,
+			     mode, unknown_mode_bits, sh_ctx.GetCs().cs_regs.data_addr, thread_group_x,
 			     thread_group_y, thread_group_z);
 		}
 	}
 
-	const auto& cs_regs = sh_ctx->GetCs();
-	const auto& sh_regs = ctx->GetShaderRegisters();
+	const auto& cs_regs = sh_ctx.GetCs();
+	const auto& sh_regs = ctx.GetShaderRegisters();
 
 	ShaderComputeInputInfo    input_info {};
 	std::span<const uint32_t> cs_shader;
-	if (!ShaderCompileInfoCS(&cs_regs, &sh_regs, &input_info, &cs_shader)) {
+	if (!ShaderCompileInfoCS(cs_regs, sh_regs, input_info, cs_shader)) {
 		EXIT("ShaderCompileInfoCS failed for dispatch with CS shader 0x%016" PRIx64 "\n",
 		     cs_regs.cs_regs.data_addr);
 	}
@@ -447,8 +401,8 @@ void RenderDispatchDirect(uint64_t submit_id, CommandBuffer* buffer, HW::Context
 	    (input_info.threads_num[0] * input_info.threads_num[1] * input_info.threads_num[2] >= 512);
 	const auto& program   = *input_info.stage.program;
 	const auto& resources = *input_info.stage.resources;
-	if (TryConsumeComputeMetaClear(input_info, *ctx, thread_group_x, thread_group_y, thread_group_z,
-	                               mode)) {
+	if (TryConsumeComputeMetaClear(input_info, buffer, thread_group_x, thread_group_y,
+	                               thread_group_z, mode)) {
 		return;
 	}
 	if (TryConsumeComputeImageClear(input_info, buffer, thread_group_x, thread_group_y,
@@ -467,7 +421,7 @@ void RenderDispatchDirect(uint64_t submit_id, CommandBuffer* buffer, HW::Context
 		LOGF("GraphicsRenderDispatchDirect: frame=%u shader=0x%016" PRIx64
 		     " groups=%ux%ux%u mode=0x%08" PRIx32 " local=%ux%ux%u "
 		     "buffers=%zu textures=%zu sampled=%zu storage=%zu samplers=%zu push=%u\n",
-		     frame_num, sh_ctx->GetCs().cs_regs.data_addr, thread_group_x, thread_group_y,
+		     frame_num, sh_ctx.GetCs().cs_regs.data_addr, thread_group_x, thread_group_y,
 		     thread_group_z, mode, input_info.threads_num[0], input_info.threads_num[1],
 		     input_info.threads_num[2], program.info.buffers.size(), program.info.images.size(),
 		     sampled_images, program.info.images.size() - sampled_images,
@@ -542,35 +496,42 @@ void RenderDispatchDirect(uint64_t submit_id, CommandBuffer* buffer, HW::Context
 			LOGF("GraphicsRenderDispatchDirect: skipping zero-sized dispatch groups=%ux%ux%u "
 			     "mode=0x%08" PRIx32 " shader=0x%016" PRIx64 "\n",
 			     thread_group_x, thread_group_y, thread_group_z, mode,
-			     sh_ctx->GetCs().cs_regs.data_addr);
+			     sh_ctx.GetCs().cs_regs.data_addr);
 		}
 		return;
 	}
 
-	auto* vk_buffer = buffer->GetPool()->buffers[buffer->GetIndex()];
-	auto* pipeline  = g_render_ctx->GetPipelineCache()->CreateComputePipeline(
-	    &input_info, &sh_ctx->GetCs(), cs_shader);
+	for (;;) {
+		const auto recording_generation = buffer.GetRecordingGeneration();
+		auto       vk_buffer            = buffer.Handle();
+		auto&      pipeline = GetRenderContext().GetPipelineCache().CreateComputePipeline(
+		    input_info, sh_ctx.GetCs(), cs_shader);
 
-	vkCmdBindPipeline(vk_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline);
+		vk_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.pipeline);
 
-	const auto address_writes = BindDescriptors(
-	    submit_id, buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline_layout,
-	    input_info.stage, VK_SHADER_STAGE_COMPUTE_BIT, DescriptorCache::Stage::Compute);
+		BindDescriptors(submit_id, buffer, vk::PipelineBindPoint::eCompute,
+		                pipeline.pipeline_layout, input_info.stage,
+		                vk::ShaderStageFlagBits::eCompute, DescriptorCache::Stage::Compute);
+		if (buffer.GetRecordingGeneration() != recording_generation) {
+			continue;
+		}
 
-	vkCmdDispatch(vk_buffer, thread_group_x, thread_group_y, thread_group_z);
+		vk_buffer.dispatch(thread_group_x, thread_group_y, thread_group_z);
 
-	bool has_storage_writes = HasShaderBufferWrites(input_info.stage);
-	has_storage_writes      = MarkShaderAddressWrites(address_writes) || has_storage_writes;
-	has_storage_writes =
-	    std::any_of(program.info.images.begin(), program.info.images.end(),
-	                [](const auto& image) {
-		                return image.written &&
-		                       (image.kind == ShaderRecompiler::IR::ResourceKind::StorageImage ||
-		                        image.kind == ShaderRecompiler::IR::ResourceKind::StorageImageUint);
-	                }) ||
-	    has_storage_writes;
-	if (has_storage_writes) {
-		ShaderWriteBarrier(vk_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+		bool has_storage_writes = HasShaderBufferWrites(input_info.stage);
+		has_storage_writes =
+		    std::any_of(
+		        program.info.images.begin(), program.info.images.end(),
+		        [](const auto& image) {
+			        return image.written &&
+			               (image.kind == ShaderRecompiler::IR::ResourceKind::StorageImage ||
+			                image.kind == ShaderRecompiler::IR::ResourceKind::StorageImageUint);
+		        }) ||
+		    has_storage_writes;
+		if (has_storage_writes) {
+			ShaderWriteBarrier(vk_buffer, vk::PipelineStageFlagBits::eComputeShader);
+		}
+		break;
 	}
 }
 

@@ -31,6 +31,18 @@ void KYTY_SYSV_ABI LoginDialogParamInitialize(void* param);
 
 } // namespace LoginDialog
 
+namespace SigninDialog {
+
+int KYTY_SYSV_ABI SigninDialogInitialize();
+int KYTY_SYSV_ABI SigninDialogTerminate();
+int KYTY_SYSV_ABI SigninDialogOpen(const void* param);
+int KYTY_SYSV_ABI SigninDialogClose();
+int KYTY_SYSV_ABI SigninDialogUpdateStatus();
+int KYTY_SYSV_ABI SigninDialogGetStatus();
+int KYTY_SYSV_ABI SigninDialogGetResult(void* result);
+
+} // namespace SigninDialog
+
 namespace SaveDataDialog {
 
 int KYTY_SYSV_ABI SaveDataDialogInitialize();

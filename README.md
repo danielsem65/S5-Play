@@ -25,9 +25,80 @@ low performance.
 - **GPU:** Vulkan 1.3 capable (NVIDIA GTX 900+, AMD RX 400+, Intel Arc)
 - **RAM:** 16 GB minimum
 
+## Screenshots
+
+<table align="center">
+  <tr>
+    <td align="center">
+      <strong>Disgaea 6</strong><br>
+      <img src="docs/screenshots/ps5-01.png" width="300" alt="Disgaea 6 running in KytyPS5">
+    </td>
+    <td align="center">
+      <strong>Dreaming Sarah</strong><br>
+      <img src="docs/screenshots/ps5-03.png" width="300" alt="Dreaming Sarah running in KytyPS5">
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <strong>Minecraft Legends</strong><br>
+      <img src="docs/screenshots/ps5-04.png" width="300" alt="Minecraft Legends running in KytyPS5">
+    </td>
+    <td align="center">
+      <strong>SILENT HILL: The Short Message</strong><br>
+      <img src="docs/screenshots/ps5-05.png" width="300" alt="SILENT HILL: The Short Message running in KytyPS5">
+    </td>
+  </tr>
+</table>
+
+## Contributing
+
+Testing games and submitting detailed bug reports are useful ways to contribute. Search existing
+issues first, then use the **Game Emulation Bug Report** template and attach the complete log file.
+
+Code contributions should be focused, build successfully on Windows, and include relevant tests
+where practical.
+
+### Formatting
+
+Set up the clang-format hook after cloning:
+
+```powershell
+python -m pip install pre-commit
+python -m pre_commit install --install-hooks
+```
+
+It formats staged `.cpp`, `.h`, and `.inc` files in `src`.
+
+## Developer Information
+
+The PS5 graphics architecture is based on AMD RDNA 2. Use AMD's
+[RDNA 2 Instruction Set Architecture Reference Guide (document 70648)](https://docs.amd.com/v/u/en-US/rdna2-shader-instruction-set-architecture)
+as the primary instruction-encoding reference when working on shader decoding and recompilation.
+
+Important areas of the codebase:
+
+- [`src/graphics/shader/recompiler`](src/graphics/shader/recompiler) — instruction decoding,
+  intermediate representation, control flow, resource tracking, and SPIR-V emission
+- [`src/graphics/guest_gpu`](src/graphics/guest_gpu) — PS5 (Prospero) GPU formats and command processing
+- [`src/graphics/host_gpu`](src/graphics/host_gpu) — Vulkan host backend and resource management
+- [`tests`](tests) — focused memory, shader, and resource-tracking regression tests
+
+The renderer targets Vulkan 1.3.
+
 ## Building
 
-### From source
+### Build requirements
+
+- Git
+- CMake 3.12 or newer
+- Ninja
+- Visual Studio 2022 with **Desktop development with C++** workload and **C++ Clang tools for Windows**
+- Qt 6.5+ (MSVC 2022), including Concurrent, Network, and Widgets
+- Vulkan SDK 1.3+
+
+The Microsoft C++ compiler (`cl.exe`) is not supported; use `clang-cl`.
+
+Open a **Developer PowerShell for Visual Studio 2022** and run:
 
 ```powershell
 # Install prerequisites:

@@ -1,3 +1,5 @@
+#include "graphics/host_gpu/renderer/sync.h"
+
 #include "common/assert.h"
 #include "common/common.h"
 #include "common/logging/log.h"
@@ -7,393 +9,331 @@
 #include "graphics/host_gpu/renderer/bufferCache.h"
 #include "graphics/host_gpu/renderer/render.h"
 #include "graphics/host_gpu/renderer/renderContext.h"
-#include "graphics/host_gpu/renderer/renderState.h"
 #include "graphics/presentation/displayBuffer.h"
 #include "kernel/eventQueue.h"
 #include "kernel/pthread.h"
 #include "libs/errno.h"
 
-#include <cstring>
+#include <array>
+#include <limits>
+#include <optional>
 
-namespace Libs::Graphics {
+namespace Libs::Graphics::Sync {
 
-constexpr int GRAPHICS_EVENT_QUEUED_GRAPHICS_INTERRUPT = 0x00;
-constexpr int GRAPHICS_EVENT_EOP                       = 0x40;
+constexpr int      GRAPHICS_EVENT_QUEUED_GRAPHICS_INTERRUPT = 0x00;
+constexpr int      GRAPHICS_EVENT_EOP                       = 0x40;
+constexpr uint64_t GRAPHICS_REFERENCE_CLOCK_FREQUENCY       = 100000000;
 
-static void SubmitLabel32(CommandBuffer* buffer, uint32_t* dst, uint32_t value,
-                          LabelCallback callback_1 = nullptr, LabelCallback callback_2 = nullptr,
-                          const uint64_t* args = nullptr) {
-	auto* label =
-	    LabelCreate32(g_render_ctx->GetGraphicCtx(), dst, value, callback_1, callback_2, args);
-	LabelSet(buffer, label);
-	LabelDelete(label);
-}
-
-static void SubmitLabel64(CommandBuffer* buffer, uint64_t* dst, uint64_t value,
-                          LabelCallback callback_1 = nullptr, LabelCallback callback_2 = nullptr,
-                          const uint64_t* args = nullptr) {
-	auto* label =
-	    LabelCreate64(g_render_ctx->GetGraphicCtx(), dst, value, callback_1, callback_2, args);
-	LabelSet(buffer, label);
-	LabelDelete(label);
-}
-
-template <typename T>
-static void PublishImmediateFence(T* dst, T value) {
-	static_assert(sizeof(T) == sizeof(uint32_t) || sizeof(T) == sizeof(uint64_t));
-	EXIT_IF(dst == nullptr);
-	// EOP/EOS fence payloads are constant and published while parsing the packet. Kyty performs the
-	// direct mapped write under CommandProcessorGuestAccessScope: a protected access is first resolved by
-	// BufferCache inline, then this instruction retries so the EOP payload wins over prior GPU bytes.
-	std::memcpy(dst, &value, sizeof(value));
-}
-
-static void SubmitDisplayBufferFlip(const uint64_t* args) {
-	if (g_render_ctx == nullptr || args == nullptr) {
-		EXIT("GPU flip submission has invalid state, render_ctx=%p args=%p\n",
-		     static_cast<const void*>(g_render_ctx), static_cast<const void*>(args));
+bool ScaleReferenceClock(uint64_t host_ticks, uint64_t host_frequency, uint64_t& value) {
+	if (host_frequency == 0) {
+		return false;
 	}
-	const auto handle    = static_cast<int>(args[0]);
-	const auto index     = static_cast<int>(args[1]);
-	const auto flip_mode = static_cast<int>(args[2]);
-	const auto flip_arg  = static_cast<int64_t>(args[3]);
-	const auto result =
-	    Presentation::DisplayBufferSubmitFlipFromGpu(handle, index, flip_mode, flip_arg);
-	if (result != 0) {
-		EXIT("GPU flip submission failed, result=%d handle=%d index=%d mode=%d arg=%" PRId64 "\n",
-		     result, handle, index, flip_mode, flip_arg);
-	}
-}
 
-static bool CompleteDisplayBufferFlip(const uint64_t* args) {
-	if (g_render_ctx == nullptr || args == nullptr) {
-		EXIT("GPU flip completion has invalid state, render_ctx=%p args=%p\n",
-		     static_cast<const void*>(g_render_ctx), static_cast<const void*>(args));
+	const auto     whole_seconds = host_ticks / host_frequency;
+	const auto     remainder     = host_ticks % host_frequency;
+	constexpr auto MAX_VALUE     = std::numeric_limits<uint64_t>::max();
+	if (whole_seconds > MAX_VALUE / GRAPHICS_REFERENCE_CLOCK_FREQUENCY ||
+	    remainder > MAX_VALUE / GRAPHICS_REFERENCE_CLOCK_FREQUENCY) {
+		return false;
 	}
-	Presentation::DisplayBufferCompleteFlipFromGpu(static_cast<int>(args[0]),
-	                                               static_cast<int>(args[1]));
+
+	const auto whole_value      = whole_seconds * GRAPHICS_REFERENCE_CLOCK_FREQUENCY;
+	const auto fractional_value = (remainder * GRAPHICS_REFERENCE_CLOCK_FREQUENCY) / host_frequency;
+	if (whole_value > MAX_VALUE - fractional_value) {
+		return false;
+	}
+	value = whole_value + fractional_value;
 	return true;
 }
 
-void GraphicsRenderTriggerAgcUserInterrupt() {
+uint64_t ReadReferenceClock() {
+	const auto host_frequency = LibKernel::KernelGetTscFrequency();
+	const auto host_ticks     = LibKernel::KernelReadTsc();
+	uint64_t   value          = 0;
+	if (!ScaleReferenceClock(host_ticks, host_frequency, value)) {
+		EXIT("cannot scale host clock, ticks=0x%016" PRIx64 " frequency=%" PRIu64 "\n", host_ticks,
+		     host_frequency);
+	}
+	return value;
+}
+
+static void SubmitLabel(CommandBuffer& buffer, LabelCallback callback_1 = nullptr,
+                        LabelCallback callback_2 = nullptr, const uint64_t* args = nullptr) {
+	auto* label = LabelCreate(callback_1, callback_2, args);
+	LabelSet(buffer, *label);
+	LabelDelete(*label);
+}
+
+static bool CompleteDisplayBufferFlip(const uint64_t* args) {
+	EXIT_IF(args == nullptr);
+	Presentation::DisplayBufferCompleteFlipFromGpu(args[0]);
+	return true;
+}
+
+enum class EndOfPipeCompletion { None, Interrupt, Flip, FlipAndInterrupt };
+
+struct EndOfPipeSignal {
+	CommandBuffer*          buffer          = nullptr;
+	uint64_t                submit_id       = 0;
+	CommandBufferDebugOp    debug_operation = CommandBufferDebugOp::Unknown;
+	std::array<uint32_t, 4> debug_args      = {};
+	uint64_t                debug_data      = 0;
+	std::optional<uint64_t> destination;
+	EndOfPipeCompletion     completion      = EndOfPipeCompletion::None;
+	uint64_t                completion_data = 0;
+};
+
+enum class EndOfPipeWriteSize : uint32_t { Dword = 4, Qword = 8 };
+enum class EndOfPipeWriteAction { Write, WriteBack, Interrupt, InterruptWriteBack };
+
+static bool TriggerEopEventCallback(const uint64_t* args) {
+	EXIT_IF(args == nullptr);
+	GetRenderContext().TriggerEopEvent(static_cast<uint32_t>(args[0]));
+	return true;
+}
+
+static bool TriggerDefaultEopEventCallback(const uint64_t* /*args*/) {
+	GetRenderContext().TriggerEopEvent(0);
+	return true;
+}
+
+static void ValidateEndOfPipeSignal(const EndOfPipeSignal& signal) {
+	if (signal.destination.has_value()) {
+		EXIT_IF(*signal.destination == 0);
+	}
+	EXIT_IF(signal.buffer == nullptr);
+	(void)signal.buffer->Handle();
+}
+
+static void RecordEndOfPipeSignal(const EndOfPipeSignal& signal) {
+	ValidateEndOfPipeSignal(signal);
+	signal.buffer->SetDebugInfo(static_cast<uint32_t>(signal.debug_operation), signal.submit_id,
+	                            signal.debug_args[0], signal.debug_args[1], signal.debug_args[2],
+	                            signal.debug_args[3], signal.debug_data);
+
+	const uint64_t args[LABEL_ARGS_MAX] = {signal.completion_data};
+	switch (signal.completion) {
+		case EndOfPipeCompletion::None: return;
+		case EndOfPipeCompletion::Interrupt:
+			SubmitLabel(*signal.buffer, nullptr, TriggerEopEventCallback, args);
+			return;
+		case EndOfPipeCompletion::Flip:
+			SubmitLabel(*signal.buffer, CompleteDisplayBufferFlip, nullptr, args);
+			return;
+		case EndOfPipeCompletion::FlipAndInterrupt:
+			SubmitLabel(*signal.buffer, CompleteDisplayBufferFlip, TriggerDefaultEopEventCallback,
+			            args);
+			return;
+	}
+}
+
+static CommandBufferDebugOp DebugOperation(EndOfPipeWriteAction action) {
+	switch (action) {
+		case EndOfPipeWriteAction::Write: return CommandBufferDebugOp::EopWrite;
+		case EndOfPipeWriteAction::WriteBack:
+		case EndOfPipeWriteAction::InterruptWriteBack: return CommandBufferDebugOp::EopWriteBack;
+		case EndOfPipeWriteAction::Interrupt: return CommandBufferDebugOp::EopInterrupt;
+	}
+	EXIT("unsupported end-of-pipe write action\n");
+	return CommandBufferDebugOp::Unknown;
+}
+
+static bool TriggersInterrupt(EndOfPipeWriteAction action) {
+	return action == EndOfPipeWriteAction::Interrupt ||
+	       action == EndOfPipeWriteAction::InterruptWriteBack;
+}
+
+static void RecordEndOfPipeWrite(uint64_t submit_id, CommandBuffer& buffer, uint64_t destination,
+                                 uint64_t value, EndOfPipeWriteSize size,
+                                 EndOfPipeWriteAction action, uint32_t context_id = 0) {
+	const auto width      = static_cast<uint32_t>(size);
+	const auto value_low  = static_cast<uint32_t>(value);
+	const auto value_high = static_cast<uint32_t>(value >> 32u);
+	const bool interrupt  = TriggersInterrupt(action);
+
+	EndOfPipeSignal signal {
+	    .buffer          = &buffer,
+	    .submit_id       = submit_id,
+	    .debug_operation = DebugOperation(action),
+	    .debug_args      = interrupt ? std::array {width, context_id, value_low, value_high}
+	                                 : std::array {width, value_low, value_high, 0u},
+	    .debug_data      = destination,
+	    .destination     = destination,
+	    .completion      = interrupt ? EndOfPipeCompletion::Interrupt : EndOfPipeCompletion::None,
+	    .completion_data = context_id != 0 ? context_id : value,
+	};
+	RecordEndOfPipeSignal(signal);
+}
+
+void TriggerAgcUserInterrupt() {
 	auto tsc    = LibKernel::KernelReadTsc();
 	auto result = LibKernel::EventQueue::KernelTriggerUserEventForAll(AGC_USER_INTERRUPT_EVENT,
 	                                                                  reinterpret_cast<void*>(tsc));
 	EXIT_NOT_IMPLEMENTED(result != OK && result != LibKernel::KERNEL_ERROR_ENOENT);
 }
 
-void GraphicsRenderTriggerEopEvent(uint32_t context_id) {
-	EXIT_IF(g_render_ctx == nullptr);
-	g_render_ctx->TriggerEopEvent(context_id);
+void TriggerEopEvent(uint32_t context_id) {
+	GetRenderContext().TriggerEopEvent(context_id);
 }
 
-void GraphicsRenderWriteAtEndOfPipe32(uint64_t submit_id, CommandBuffer* buffer,
-                                      uint32_t* dst_gpu_addr, uint32_t value) {
-	EXIT_IF(g_render_ctx == nullptr);
-	EXIT_IF(dst_gpu_addr == nullptr);
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
-
-	buffer->SetDebugInfo(static_cast<uint32_t>(CommandBufferDebugOp::EopWrite), submit_id, 4, value,
-	                     0, 0, reinterpret_cast<uint64_t>(dst_gpu_addr));
-
-	PublishImmediateFence(dst_gpu_addr, value);
+void WriteAtEndOfPipe32(uint64_t submit_id, CommandBuffer& buffer, uint32_t* dst_gpu_addr,
+                        uint32_t value) {
+	RecordEndOfPipeWrite(submit_id, buffer, reinterpret_cast<uint64_t>(dst_gpu_addr), value,
+	                     EndOfPipeWriteSize::Dword, EndOfPipeWriteAction::Write);
 }
 
-void GraphicsRenderWriteAtEndOfPipeGds32(uint64_t submit_id, CommandBuffer* buffer,
-                                         uint32_t* dst_gpu_addr, uint32_t dw_offset,
-                                         uint32_t dw_num) {
-	EXIT_IF(g_render_ctx == nullptr);
-	EXIT_IF(dst_gpu_addr == nullptr);
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
-
-	buffer->SetDebugInfo(static_cast<uint32_t>(CommandBufferDebugOp::EopWrite), submit_id,
-	                     dw_offset, dw_num, 0, 0, reinterpret_cast<uint64_t>(dst_gpu_addr));
-
-	uint64_t args[LABEL_ARGS_MAX] = {static_cast<uint64_t>(dw_offset),
-	                                 static_cast<uint64_t>(dw_num),
-	                                 reinterpret_cast<uint64_t>(dst_gpu_addr), 0};
-
-	SubmitLabel32(
-	    buffer, dst_gpu_addr, 0,
-	    [](const uint64_t* args) {
-		    auto  dw_offset    = static_cast<uint32_t>(args[0]);
-		    auto  dw_num       = static_cast<uint32_t>(args[1]);
-		    auto* dst_gpu_addr = reinterpret_cast<uint32_t*>(args[2]);
-		    if (dst_gpu_addr == nullptr || dw_num == 0) {
-			    EXIT("invalid asynchronous EOP GDS write\n");
-		    }
-		    const auto size = static_cast<uint64_t>(dw_num) * sizeof(uint32_t);
-		    auto transaction = g_render_ctx->GetGpuResources()->LockAsynchronousGuestWrite(
-		        reinterpret_cast<uint64_t>(dst_gpu_addr), size);
-		    g_render_ctx->GetGdsBuffer()->Read(g_render_ctx->GetGraphicCtx(), dst_gpu_addr,
-		                                       dw_offset, dw_num);
-		    return false;
-	    },
-	    nullptr, args);
+void WriteAtEndOfPipeGds32(uint64_t submit_id, CommandBuffer& buffer, uint32_t* dst_gpu_addr,
+                           uint32_t dw_offset, uint32_t dw_num) {
+	const auto destination = reinterpret_cast<uint64_t>(dst_gpu_addr);
+	RecordEndOfPipeSignal({
+	    .buffer          = &buffer,
+	    .submit_id       = submit_id,
+	    .debug_operation = CommandBufferDebugOp::EopWrite,
+	    .debug_args      = {dw_offset, dw_num, 0, 0},
+	    .debug_data      = destination,
+	    .destination     = destination,
+	});
 }
 
-void GraphicsRenderWriteAtEndOfPipe64(uint64_t submit_id, CommandBuffer* buffer,
-                                      uint64_t* dst_gpu_addr, uint64_t value) {
-	EXIT_IF(g_render_ctx == nullptr);
-	EXIT_IF(dst_gpu_addr == nullptr);
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
-
-	buffer->SetDebugInfo(static_cast<uint32_t>(CommandBufferDebugOp::EopWrite), submit_id, 8,
-	                     static_cast<uint32_t>(value), static_cast<uint32_t>(value >> 32u), 0,
-	                     reinterpret_cast<uint64_t>(dst_gpu_addr));
-
-	PublishImmediateFence(dst_gpu_addr, value);
+void WriteAtEndOfPipe64(uint64_t submit_id, CommandBuffer& buffer, uint64_t* dst_gpu_addr,
+                        uint64_t value) {
+	RecordEndOfPipeWrite(submit_id, buffer, reinterpret_cast<uint64_t>(dst_gpu_addr), value,
+	                     EndOfPipeWriteSize::Qword, EndOfPipeWriteAction::Write);
 }
 
-void GraphicsRenderWriteAtEndOfPipeClockCounter(uint64_t submit_id, CommandBuffer* buffer,
-                                                uint64_t* dst_gpu_addr) {
-	EXIT_IF(g_render_ctx == nullptr);
-	EXIT_IF(dst_gpu_addr == nullptr);
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
+void WriteAtEndOfPipeClockCounter(uint64_t submit_id, CommandBuffer& buffer, uint64_t* dst_gpu_addr,
+                                  uint64_t value) {
+	RecordEndOfPipeWrite(submit_id, buffer, reinterpret_cast<uint64_t>(dst_gpu_addr), 0,
+	                     EndOfPipeWriteSize::Qword, EndOfPipeWriteAction::Write);
 
-	buffer->SetDebugInfo(static_cast<uint32_t>(CommandBufferDebugOp::EopWrite), submit_id, 8, 0, 0,
-	                     0, reinterpret_cast<uint64_t>(dst_gpu_addr));
-
-	const auto value = LibKernel::KernelReadTsc();
-	PublishImmediateFence(dst_gpu_addr, value);
 	LOGF_COLOR(Log::Color::BrightGreen,
 	           "EndOfPipe Signal!!! [0x%016" PRIx64 "] <- Clock: 0x%016" PRIx64 "\n",
 	           reinterpret_cast<uint64_t>(dst_gpu_addr), value);
 }
 
-void GraphicsRenderWriteAtEndOfPipeClockCounterWithWriteBack(uint64_t       submit_id,
-                                                             CommandBuffer* buffer,
-                                                             uint64_t*      dst_gpu_addr) {
-	EXIT_IF(g_render_ctx == nullptr);
-	EXIT_IF(dst_gpu_addr == nullptr);
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
+void WriteAtEndOfPipeClockCounterWithWriteBack(uint64_t submit_id, CommandBuffer& buffer,
+                                               uint64_t* dst_gpu_addr, uint64_t value) {
+	RecordEndOfPipeWrite(submit_id, buffer, reinterpret_cast<uint64_t>(dst_gpu_addr), 0,
+	                     EndOfPipeWriteSize::Qword, EndOfPipeWriteAction::WriteBack);
 
-	buffer->SetDebugInfo(static_cast<uint32_t>(CommandBufferDebugOp::EopWriteBack), submit_id, 8, 0,
-	                     0, 0, reinterpret_cast<uint64_t>(dst_gpu_addr));
-
-	const auto value = LibKernel::KernelReadTsc();
-	PublishImmediateFence(dst_gpu_addr, value);
 	LOGF_COLOR(Log::Color::BrightGreen,
 	           "EndOfPipe Signal!!! [0x%016" PRIx64 "] <- Clock: 0x%016" PRIx64 "\n",
 	           reinterpret_cast<uint64_t>(dst_gpu_addr), value);
 }
 
-void GraphicsRenderWriteAtEndOfPipeWithWriteBack64(uint64_t submit_id, CommandBuffer* buffer,
-                                                   uint64_t* dst_gpu_addr, uint64_t value) {
-	EXIT_IF(g_render_ctx == nullptr);
-	EXIT_IF(dst_gpu_addr == nullptr);
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
-
-	buffer->SetDebugInfo(static_cast<uint32_t>(CommandBufferDebugOp::EopWriteBack), submit_id, 8,
-	                     static_cast<uint32_t>(value), static_cast<uint32_t>(value >> 32u), 0,
-	                     reinterpret_cast<uint64_t>(dst_gpu_addr));
-
-	PublishImmediateFence(dst_gpu_addr, value);
+void WriteAtEndOfPipeWithWriteBack64(uint64_t submit_id, CommandBuffer& buffer,
+                                     uint64_t* dst_gpu_addr, uint64_t value) {
+	RecordEndOfPipeWrite(submit_id, buffer, reinterpret_cast<uint64_t>(dst_gpu_addr), value,
+	                     EndOfPipeWriteSize::Qword, EndOfPipeWriteAction::WriteBack);
 }
 
-void GraphicsRenderWriteAtEndOfPipeWithWriteBack32(uint64_t submit_id, CommandBuffer* buffer,
-                                                   uint32_t* dst_gpu_addr, uint32_t value) {
-	EXIT_IF(g_render_ctx == nullptr);
-	EXIT_IF(dst_gpu_addr == nullptr);
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
-
-	buffer->SetDebugInfo(static_cast<uint32_t>(CommandBufferDebugOp::EopWriteBack), submit_id, 4,
-	                     value, 0, 0, reinterpret_cast<uint64_t>(dst_gpu_addr));
-
-	PublishImmediateFence(dst_gpu_addr, value);
+void WriteAtEndOfPipeWithWriteBack32(uint64_t submit_id, CommandBuffer& buffer,
+                                     uint32_t* dst_gpu_addr, uint32_t value) {
+	RecordEndOfPipeWrite(submit_id, buffer, reinterpret_cast<uint64_t>(dst_gpu_addr), value,
+	                     EndOfPipeWriteSize::Dword, EndOfPipeWriteAction::WriteBack);
 }
 
-void GraphicsRenderWriteAtEndOfPipeWithInterruptWriteBack64(uint64_t       submit_id,
-                                                            CommandBuffer* buffer,
-                                                            uint64_t* dst_gpu_addr, uint64_t value,
-                                                            uint32_t context_id) {
-	EXIT_IF(g_render_ctx == nullptr);
-	EXIT_IF(dst_gpu_addr == nullptr);
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
-
-	buffer->SetDebugInfo(static_cast<uint32_t>(CommandBufferDebugOp::EopWriteBack), submit_id, 8,
-	                     context_id, static_cast<uint32_t>(value),
-	                     static_cast<uint32_t>(value >> 32u),
-	                     reinterpret_cast<uint64_t>(dst_gpu_addr));
-	PublishImmediateFence(dst_gpu_addr, value);
-
-	uint64_t args[LABEL_ARGS_MAX] = {context_id != 0 ? context_id : value};
-
-	SubmitLabel64(
-	    buffer, nullptr, 0, nullptr,
-	    [](const uint64_t* args) {
-		    EXIT_IF(g_render_ctx == nullptr);
-		    g_render_ctx->TriggerEopEvent(static_cast<uint32_t>(args[0]));
-		    return true;
-	    },
-	    args);
+void WriteAtEndOfPipeWithInterruptWriteBack64(uint64_t submit_id, CommandBuffer& buffer,
+                                              uint64_t* dst_gpu_addr, uint64_t value,
+                                              uint32_t context_id) {
+	RecordEndOfPipeWrite(submit_id, buffer, reinterpret_cast<uint64_t>(dst_gpu_addr), value,
+	                     EndOfPipeWriteSize::Qword, EndOfPipeWriteAction::InterruptWriteBack,
+	                     context_id);
 }
 
-void GraphicsRenderWriteAtEndOfPipeWithInterruptWriteBack32(uint64_t       submit_id,
-                                                            CommandBuffer* buffer,
-                                                            uint32_t* dst_gpu_addr, uint32_t value,
-                                                            uint32_t context_id) {
-	EXIT_IF(g_render_ctx == nullptr);
-	EXIT_IF(dst_gpu_addr == nullptr);
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
-
-	buffer->SetDebugInfo(static_cast<uint32_t>(CommandBufferDebugOp::EopWriteBack), submit_id, 4,
-	                     context_id, value, 0, reinterpret_cast<uint64_t>(dst_gpu_addr));
-	PublishImmediateFence(dst_gpu_addr, value);
-
-	uint64_t args[LABEL_ARGS_MAX] = {context_id != 0 ? context_id : value};
-
-	SubmitLabel32(
-	    buffer, nullptr, 0, nullptr,
-	    [](const uint64_t* args) {
-		    EXIT_IF(g_render_ctx == nullptr);
-		    g_render_ctx->TriggerEopEvent(static_cast<uint32_t>(args[0]));
-		    return true;
-	    },
-	    args);
+void WriteAtEndOfPipeWithInterruptWriteBack32(uint64_t submit_id, CommandBuffer& buffer,
+                                              uint32_t* dst_gpu_addr, uint32_t value,
+                                              uint32_t context_id) {
+	RecordEndOfPipeWrite(submit_id, buffer, reinterpret_cast<uint64_t>(dst_gpu_addr), value,
+	                     EndOfPipeWriteSize::Dword, EndOfPipeWriteAction::InterruptWriteBack,
+	                     context_id);
 }
 
-void GraphicsRenderWriteAtEndOfPipeWithInterrupt64(uint64_t submit_id, CommandBuffer* buffer,
-                                                   uint64_t* dst_gpu_addr, uint64_t value,
-                                                   uint32_t context_id) {
-	EXIT_IF(g_render_ctx == nullptr);
-	EXIT_IF(dst_gpu_addr == nullptr);
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
-
-	buffer->SetDebugInfo(static_cast<uint32_t>(CommandBufferDebugOp::EopInterrupt), submit_id, 8,
-	                     context_id, static_cast<uint32_t>(value),
-	                     static_cast<uint32_t>(value >> 32u),
-	                     reinterpret_cast<uint64_t>(dst_gpu_addr));
-	PublishImmediateFence(dst_gpu_addr, value);
-
-	uint64_t args[LABEL_ARGS_MAX] = {context_id != 0 ? context_id : value};
-
-	SubmitLabel64(
-	    buffer, nullptr, 0, nullptr,
-	    [](const uint64_t* args) {
-		    EXIT_IF(g_render_ctx == nullptr);
-		    g_render_ctx->TriggerEopEvent(static_cast<uint32_t>(args[0]));
-		    return true;
-	    },
-	    args);
+void WriteAtEndOfPipeWithInterrupt64(uint64_t submit_id, CommandBuffer& buffer,
+                                     uint64_t* dst_gpu_addr, uint64_t value, uint32_t context_id) {
+	RecordEndOfPipeWrite(submit_id, buffer, reinterpret_cast<uint64_t>(dst_gpu_addr), value,
+	                     EndOfPipeWriteSize::Qword, EndOfPipeWriteAction::Interrupt, context_id);
 }
 
-void GraphicsRenderWriteAtEndOfPipeWithInterrupt32(uint64_t submit_id, CommandBuffer* buffer,
-                                                   uint32_t* dst_gpu_addr, uint32_t value,
-                                                   uint32_t context_id) {
-	EXIT_IF(g_render_ctx == nullptr);
-	EXIT_IF(dst_gpu_addr == nullptr);
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
-
-	buffer->SetDebugInfo(static_cast<uint32_t>(CommandBufferDebugOp::EopInterrupt), submit_id, 4,
-	                     context_id, value, 0, reinterpret_cast<uint64_t>(dst_gpu_addr));
-	PublishImmediateFence(dst_gpu_addr, value);
-
-	uint64_t args[LABEL_ARGS_MAX] = {context_id != 0 ? context_id : value};
-
-	SubmitLabel32(
-	    buffer, nullptr, 0, nullptr,
-	    [](const uint64_t* args) {
-		    EXIT_IF(g_render_ctx == nullptr);
-		    g_render_ctx->TriggerEopEvent(static_cast<uint32_t>(args[0]));
-		    return true;
-	    },
-	    args);
+void WriteAtEndOfPipeWithInterrupt32(uint64_t submit_id, CommandBuffer& buffer,
+                                     uint32_t* dst_gpu_addr, uint32_t value, uint32_t context_id) {
+	RecordEndOfPipeWrite(submit_id, buffer, reinterpret_cast<uint64_t>(dst_gpu_addr), value,
+	                     EndOfPipeWriteSize::Dword, EndOfPipeWriteAction::Interrupt, context_id);
 }
 
-void GraphicsRenderWriteAtEndOfPipeWithInterruptWriteBackFlip32(
-    uint64_t submit_id, CommandBuffer* buffer, uint32_t* dst_gpu_addr, uint32_t value, int handle,
-    int index, int flip_mode, int64_t flip_arg) {
-	EXIT_IF(g_render_ctx == nullptr);
-	EXIT_IF(dst_gpu_addr == nullptr);
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
-
-	buffer->SetDebugInfo(static_cast<uint32_t>(CommandBufferDebugOp::EopWriteBackFlip), submit_id,
-	                     static_cast<uint32_t>(handle), static_cast<uint32_t>(index),
-	                     static_cast<uint32_t>(flip_mode), value, static_cast<uint64_t>(flip_arg));
-	PublishImmediateFence(dst_gpu_addr, value);
-
-	uint64_t args[LABEL_ARGS_MAX] = {static_cast<uint64_t>(handle), static_cast<uint64_t>(index),
-	                                 static_cast<uint64_t>(flip_mode),
-	                                 static_cast<uint64_t>(flip_arg)};
-
-	SubmitDisplayBufferFlip(args);
-	SubmitLabel32(
-	    buffer, nullptr, 0, CompleteDisplayBufferFlip,
-	    [](const uint64_t* /*args*/) {
-		    EXIT_IF(g_render_ctx == nullptr);
-		    g_render_ctx->TriggerEopEvent(0);
-		    return true;
-	    },
-	    args);
+uint64_t PrepareDisplayBufferFlip(CommandBuffer& buffer, int handle, int index, int flip_mode,
+                                  int64_t flip_arg) {
+	for (;;) {
+		uint64_t   request_id = 0;
+		const auto result     = Presentation::DisplayBufferSubmitFlipFromGpu(
+		    buffer, handle, index, flip_mode, flip_arg, request_id);
+		if (result == OK) {
+			EXIT_IF(request_id == 0);
+			return request_id;
+		}
+		if (result != VideoOut::VIDEO_OUT_ERROR_FLIP_QUEUE_FULL) {
+			EXIT("GPU flip submission failed, result=%d handle=%d index=%d mode=%d arg=%" PRId64
+			     "\n",
+			     result, handle, index, flip_mode, flip_arg);
+		}
+		Presentation::DisplayBufferWaitForFlipQueueSlot();
+	}
 }
 
-void GraphicsRenderWriteAtEndOfPipeWithFlip32(uint64_t submit_id, CommandBuffer* buffer,
-                                              uint32_t* dst_gpu_addr, uint32_t value, int handle,
-                                              int index, int flip_mode, int64_t flip_arg) {
-	EXIT_IF(g_render_ctx == nullptr);
-	EXIT_IF(dst_gpu_addr == nullptr);
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
-
-	buffer->SetDebugInfo(static_cast<uint32_t>(CommandBufferDebugOp::EopFlip), submit_id,
-	                     static_cast<uint32_t>(handle), static_cast<uint32_t>(index),
-	                     static_cast<uint32_t>(flip_mode), value, static_cast<uint64_t>(flip_arg));
-	PublishImmediateFence(dst_gpu_addr, value);
-
-	uint64_t args[LABEL_ARGS_MAX] = {static_cast<uint64_t>(handle), static_cast<uint64_t>(index),
-	                                 static_cast<uint64_t>(flip_mode),
-	                                 static_cast<uint64_t>(flip_arg)};
-
-	SubmitDisplayBufferFlip(args);
-	SubmitLabel32(buffer, nullptr, 0, CompleteDisplayBufferFlip, nullptr, args);
+void WriteAtEndOfPipeWithInterruptWriteBackFlip32(uint64_t submit_id, CommandBuffer& buffer,
+                                                  uint32_t* dst_gpu_addr, uint32_t value,
+                                                  int handle, int index, int flip_mode,
+                                                  int64_t flip_arg, uint64_t request_id) {
+	const auto destination = reinterpret_cast<uint64_t>(dst_gpu_addr);
+	RecordEndOfPipeSignal({
+	    .buffer          = &buffer,
+	    .submit_id       = submit_id,
+	    .debug_operation = CommandBufferDebugOp::EopWriteBackFlip,
+	    .debug_args      = {static_cast<uint32_t>(handle), static_cast<uint32_t>(index),
+	                        static_cast<uint32_t>(flip_mode), value},
+	    .debug_data      = static_cast<uint64_t>(flip_arg),
+	    .destination     = destination,
+	    .completion      = EndOfPipeCompletion::FlipAndInterrupt,
+	    .completion_data = request_id,
+	});
 }
 
-void GraphicsRenderWriteAtEndOfPipeOnlyFlip(uint64_t submit_id, CommandBuffer* buffer, int handle,
-                                            int index, int flip_mode, int64_t flip_arg) {
-	EXIT_IF(g_render_ctx == nullptr);
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
-
-	buffer->SetDebugInfo(static_cast<uint32_t>(CommandBufferDebugOp::EopOnlyFlip), submit_id,
-	                     static_cast<uint32_t>(handle), static_cast<uint32_t>(index),
-	                     static_cast<uint32_t>(flip_mode), 0, static_cast<uint64_t>(flip_arg));
-
-	uint64_t args[LABEL_ARGS_MAX] = {static_cast<uint64_t>(handle), static_cast<uint64_t>(index),
-	                                 static_cast<uint64_t>(flip_mode),
-	                                 static_cast<uint64_t>(flip_arg)};
-
-	SubmitDisplayBufferFlip(args);
-	SubmitLabel32(buffer, nullptr, 0, CompleteDisplayBufferFlip, nullptr, args);
+void WriteAtEndOfPipeWithFlip32(uint64_t submit_id, CommandBuffer& buffer, uint32_t* dst_gpu_addr,
+                                uint32_t value, int handle, int index, int flip_mode,
+                                int64_t flip_arg, uint64_t request_id) {
+	const auto destination = reinterpret_cast<uint64_t>(dst_gpu_addr);
+	RecordEndOfPipeSignal({
+	    .buffer          = &buffer,
+	    .submit_id       = submit_id,
+	    .debug_operation = CommandBufferDebugOp::EopFlip,
+	    .debug_args      = {static_cast<uint32_t>(handle), static_cast<uint32_t>(index),
+	                        static_cast<uint32_t>(flip_mode), value},
+	    .debug_data      = static_cast<uint64_t>(flip_arg),
+	    .destination     = destination,
+	    .completion      = EndOfPipeCompletion::Flip,
+	    .completion_data = request_id,
+	});
 }
 
-void GraphicsRenderTriggerEopEventAtEndOfPipe(CommandBuffer* buffer, uint32_t context_id) {
-	EXIT_IF(g_render_ctx == nullptr);
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
+void WriteAtEndOfPipeOnlyFlip(uint64_t submit_id, CommandBuffer& buffer, int handle, int index,
+                              int flip_mode, int64_t flip_arg, uint64_t request_id) {
+	RecordEndOfPipeSignal({
+	    .buffer          = &buffer,
+	    .submit_id       = submit_id,
+	    .debug_operation = CommandBufferDebugOp::EopOnlyFlip,
+	    .debug_args      = {static_cast<uint32_t>(handle), static_cast<uint32_t>(index),
+	                        static_cast<uint32_t>(flip_mode), 0},
+	    .debug_data      = static_cast<uint64_t>(flip_arg),
+	    .completion      = EndOfPipeCompletion::Flip,
+	    .completion_data = request_id,
+	});
+}
+
+void TriggerEopEventAtEndOfPipe(CommandBuffer& buffer, uint32_t context_id) {
+	ValidateEndOfPipeSignal({.buffer = &buffer});
 
 	uint64_t args[LABEL_ARGS_MAX] = {static_cast<uint64_t>(context_id)};
-
-	SubmitLabel32(
-	    buffer, nullptr, 0, nullptr,
-	    [](const uint64_t* args) {
-		    EXIT_IF(g_render_ctx == nullptr);
-		    g_render_ctx->TriggerEopEvent(static_cast<uint32_t>(args[0]));
-		    return true;
-	    },
-	    args);
+	SubmitLabel(buffer, nullptr, TriggerEopEventCallback, args);
 }
 
 static void EopEventResetFunc(LibKernel::EventQueue::KernelEqueueEvent* event) {
@@ -406,11 +346,10 @@ static void EopEventResetFunc(LibKernel::EventQueue::KernelEqueueEvent* event) {
 static void EopEventDeleteFunc(LibKernel::EventQueue::KernelEqueue       eq,
                                LibKernel::EventQueue::KernelEqueueEvent* event) {
 	EXIT_IF(event == nullptr);
-	EXIT_IF(g_render_ctx == nullptr);
 	EXIT_NOT_IMPLEMENTED(event->event.filter != LibKernel::EventQueue::KERNEL_EVFILT_GRAPHICS);
 	if (event->event.ident == GRAPHICS_EVENT_QUEUED_GRAPHICS_INTERRUPT ||
 	    event->event.ident == GRAPHICS_EVENT_EOP) {
-		g_render_ctx->DeleteEopEq(eq, static_cast<int>(event->event.ident));
+		GetRenderContext().DeleteEopEq(eq, static_cast<int>(event->event.ident));
 	}
 }
 
@@ -429,9 +368,7 @@ static void EopEventTriggerFunc(LibKernel::EventQueue::KernelEqueueEvent* event,
 	}
 }
 
-int GraphicsRenderAddEqEvent(LibKernel::EventQueue::KernelEqueue eq, int id, void* udata) {
-	EXIT_IF(g_render_ctx == nullptr);
-
+int AddEqEvent(LibKernel::EventQueue::KernelEqueue eq, int id, void* udata) {
 	LibKernel::EventQueue::KernelEqueueEvent event;
 	event.triggered                = false;
 	event.event.ident              = static_cast<uintptr_t>(id);
@@ -446,38 +383,27 @@ int GraphicsRenderAddEqEvent(LibKernel::EventQueue::KernelEqueue eq, int id, voi
 
 	int result = LibKernel::EventQueue::KernelAddEvent(eq, event);
 
-	if (id == GRAPHICS_EVENT_QUEUED_GRAPHICS_INTERRUPT || id == GRAPHICS_EVENT_EOP) {
-		g_render_ctx->AddEopEq(eq, id);
+	if (result == 0 &&
+	    (id == GRAPHICS_EVENT_QUEUED_GRAPHICS_INTERRUPT || id == GRAPHICS_EVENT_EOP)) {
+		GetRenderContext().AddEopEq(eq, id);
 	}
 
 	return result;
 }
 
-int GraphicsRenderDeleteEqEvent(LibKernel::EventQueue::KernelEqueue eq, int id) {
-	EXIT_IF(g_render_ctx == nullptr);
-
+int DeleteEqEvent(LibKernel::EventQueue::KernelEqueue eq, int id) {
 	int result = LibKernel::EventQueue::KernelDeleteEvent(
 	    eq, static_cast<uintptr_t>(id), LibKernel::EventQueue::KERNEL_EVFILT_GRAPHICS);
 
 	return result;
 }
 
-void GraphicsRenderClearGds(uint64_t dw_offset, uint32_t dw_num, uint32_t clear_value) {
-	EXIT_IF(g_render_ctx == nullptr);
-
-	g_render_ctx->GetGdsBuffer()->Clear(g_render_ctx->GetGraphicCtx(), dw_offset, dw_num,
-	                                    clear_value);
+void ReadGds(uint32_t* dst, uint32_t dw_offset, uint32_t dw_size) {
+	GetRenderContext().GetGdsBuffer().Read(dst, dw_offset, dw_size);
 }
 
-void GraphicsRenderReadGds(uint32_t* dst, uint32_t dw_offset, uint32_t dw_size) {
-	EXIT_IF(g_render_ctx == nullptr);
-
-	g_render_ctx->GetGdsBuffer()->Read(g_render_ctx->GetGraphicCtx(), dst, dw_offset, dw_size);
+void DeleteBuffers() {
+	GetRenderContext().GetBufferCache().ResetNullBuffer();
 }
 
-void GraphicsRenderDeleteBuffers() {
-	EXIT_IF(g_render_ctx == nullptr);
-	g_render_ctx->GetBufferCache()->DeleteAll(g_render_ctx->GetGraphicCtx());
-}
-
-} // namespace Libs::Graphics
+} // namespace Libs::Graphics::Sync

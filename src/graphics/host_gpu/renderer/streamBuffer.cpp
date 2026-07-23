@@ -4,7 +4,7 @@
 #include "common/logging/log.h"
 #include "common/profiler.h"
 #include "graphics/host_gpu/graphicContext.h"
-#include "graphics/host_gpu/utils.h"
+#include "graphics/host_gpu/transfer.h"
 #include "graphics/host_gpu/vma.h"
 
 #include <atomic>
@@ -16,41 +16,38 @@ namespace {
 std::atomic<uint64_t> g_stream_buffer_count {0};
 } // namespace
 
-HostStreamBuffer::HostStreamBuffer() = default;
+HostStreamBuffer::HostStreamBuffer(GraphicContext& graphics): m_graphics(graphics) {}
 
 HostStreamBuffer::~HostStreamBuffer() {
 	Release();
 }
 
-void HostStreamBuffer::EnsureBuffer(GraphicContext* ctx) {
+void HostStreamBuffer::EnsureBuffer() {
 	if (m_buffer != nullptr) {
-		if (m_ctx != ctx || m_mapped == nullptr) {
-			EXIT("host stream buffer changed graphics context\n");
+		if (m_mapped == nullptr) {
+			EXIT("host stream buffer lost its mapped storage\n");
 		}
 		return;
 	}
 	KYTY_PROFILER_BLOCK("HostStreamBuffer::create");
-	m_ctx                    = ctx;
-	m_buffer                 = std::make_unique<VulkanBuffer>();
-	m_buffer->usage          = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-	                          VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-	                          VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-	m_buffer->memory.property = static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) |
-	                            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
-	                            VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
-	VulkanCreateBuffer(ctx, CAPACITY, m_buffer.get());
-	VulkanMapMemory(ctx, &m_buffer->memory, &m_mapped);
+	m_buffer        = std::make_unique<VulkanBuffer>();
+	m_buffer->usage = vk::BufferUsageFlagBits::eStorageBuffer |
+	                  vk::BufferUsageFlagBits::eVertexBuffer |
+	                  vk::BufferUsageFlagBits::eIndexBuffer |
+	                  vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst;
+	m_buffer->memory.property = vk::MemoryPropertyFlagBits::eHostVisible |
+	                            vk::MemoryPropertyFlagBits::eHostCoherent |
+	                            vk::MemoryPropertyFlagBits::eHostCached;
+	m_graphics.CreateBuffer(CAPACITY, *m_buffer);
+	m_graphics.MapMemory(m_buffer->memory, m_mapped);
 	const auto count = g_stream_buffer_count.fetch_add(1, std::memory_order_relaxed) + 1;
-	LOGF("HostStreamBuffer: created serial=%" PRIu64 " capacity=%" PRIu64 "\n", count,
-	     CAPACITY);
+	LOGF("HostStreamBuffer: created serial=%" PRIu64 " capacity=%" PRIu64 "\n", count, CAPACITY);
 }
 
-bool HostStreamBuffer::Copy(GraphicContext* ctx, const void* src, uint64_t size,
-                            uint64_t alignment, VulkanBuffer** out_buffer, uint64_t* out_offset,
-                            uint64_t* out_range) {
+bool HostStreamBuffer::Copy(const void* src, uint64_t size, uint64_t alignment,
+                            VulkanBuffer*& out_buffer, uint64_t& out_offset, uint64_t& out_range) {
 	KYTY_PROFILER_FUNCTION();
-	if (ctx == nullptr || src == nullptr || out_buffer == nullptr || out_offset == nullptr ||
-	    out_range == nullptr) {
+	if (src == nullptr) {
 		EXIT("invalid host stream upload\n");
 	}
 	std::lock_guard lock(m_mutex);
@@ -67,12 +64,12 @@ bool HostStreamBuffer::Copy(GraphicContext* ctx, const void* src, uint64_t size,
 	if (offset > CAPACITY || size > CAPACITY - offset) {
 		return false;
 	}
-	EnsureBuffer(ctx);
+	EnsureBuffer();
 	std::memcpy(static_cast<uint8_t*>(m_mapped) + offset, src, static_cast<size_t>(size));
-	m_offset     = offset + size;
-	*out_buffer  = m_buffer.get();
-	*out_offset  = offset;
-	*out_range   = size;
+	m_offset   = offset + size;
+	out_buffer = m_buffer.get();
+	out_offset = offset;
+	out_range  = size;
 	return true;
 }
 
@@ -84,14 +81,13 @@ void HostStreamBuffer::Reset() noexcept {
 void HostStreamBuffer::Release() noexcept {
 	std::lock_guard lock(m_mutex);
 	if (m_buffer != nullptr) {
-		if (m_ctx == nullptr || m_mapped == nullptr) {
+		if (m_mapped == nullptr) {
 			EXIT("invalid host stream buffer release state\n");
 		}
-		VulkanUnmapMemory(m_ctx, &m_buffer->memory);
-		VulkanDeleteBuffer(m_ctx, m_buffer.get());
+		m_graphics.UnmapMemory(m_buffer->memory);
+		m_graphics.DeleteBuffer(*m_buffer);
 		m_buffer.reset();
 	}
-	m_ctx    = nullptr;
 	m_mapped = nullptr;
 	m_offset = 0;
 }

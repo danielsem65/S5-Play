@@ -1,9 +1,11 @@
 #include "graphics/shader/recompiler/ResourceMaterialization.h"
 
 #include "graphics/guest_gpu/gpu_format.h"
-#include "graphics/shader/recompiler/BufferFormat.h"
+#include "graphics/shader/shaderBindings.h"
 
+#include <algorithm>
 #include <fmt/format.h>
+#include <functional>
 
 namespace Libs::Graphics::ShaderRecompiler::IR {
 namespace {
@@ -28,20 +30,20 @@ bool NullImageDescriptor(const DescriptorValue& descriptor) {
 	return descriptor.dwords[0] == 0 && (descriptor.dwords[1] & 0xffu) == 0;
 }
 
+bool ValidImageDescriptor(const DescriptorValue& descriptor) {
+	return ((descriptor.dwords[3] >> 28u) & 0x8u) != 0;
+}
+
 uint32_t DescriptorImageSwizzle(const DescriptorValue& descriptor) {
 	return descriptor.dwords[3] & 0xfffu;
 }
 
-uint32_t DescriptorPackedStride(const DescriptorValue& descriptor) {
-	const auto stride       = (descriptor.dwords[1] >> 16u) & 0x3fffu;
-	const auto swizzle      = (descriptor.dwords[1] >> 31u) & 1u;
-	const auto index_stride = (descriptor.dwords[3] >> 21u) & 3u;
-	const auto add_tid      = (descriptor.dwords[3] >> 23u) & 1u;
-	return stride | (swizzle << 14u) | (index_stride << 16u) | (add_tid << 20u);
-}
-
-uint32_t DescriptorBufferFormat(const DescriptorValue& descriptor) {
-	return (descriptor.dwords[3] >> 12u) & 0x7fu;
+bool DecodeBufferDescriptor(const DescriptorValue& descriptor, ShaderBufferResource& result) {
+	if (descriptor.dword_count != std::size(result.fields)) {
+		return false;
+	}
+	std::copy_n(descriptor.dwords.begin(), std::size(result.fields), result.fields);
+	return true;
 }
 
 uint64_t AddressSpecialization(const AddressResource&           resource,
@@ -87,6 +89,15 @@ bool ValidateResourceSnapshot(const Program& program, const ResourceSnapshot& sn
 			}
 		}
 	}
+	for (uint32_t i = 0; i < program.info.buffers.size(); i++) {
+		const auto alias = program.info.buffers[i].image_alias;
+		if (alias != BufferResource::NoImageAlias && alias >= program.info.images.size()) {
+			if (error != nullptr) {
+				*error = fmt::format("buffer resource {} has invalid image alias {}", i, alias);
+			}
+			return false;
+		}
+	}
 	const auto CheckWidth = [&](const auto& values, uint32_t width, const char* kind) {
 		for (uint32_t i = 0; i < values.size(); i++) {
 			if (values[i].dword_count != width) {
@@ -117,10 +128,16 @@ bool ValidateResourceSpecialization(const Program& program, const ResourceSnapsh
 		return false;
 	}
 	for (uint32_t i = 0; i < program.info.buffers.size(); i++) {
-		const auto& buffer     = program.info.buffers[i];
-		const auto& descriptor = snapshot.buffers[i];
-		if (buffer.packed_stride != DescriptorPackedStride(descriptor) ||
-		    buffer.descriptor_format != DescriptorBufferFormat(descriptor)) {
+		const auto&          buffer = program.info.buffers[i];
+		ShaderBufferResource descriptor;
+		if (!DecodeBufferDescriptor(snapshot.buffers[i], descriptor)) {
+			if (error != nullptr) {
+				*error = fmt::format("buffer descriptor {} has invalid width", i);
+			}
+			return false;
+		}
+		if (buffer.packed_stride != descriptor.PackedStride() ||
+		    buffer.descriptor_format != descriptor.Format()) {
 			if (error != nullptr) {
 				*error = fmt::format("buffer descriptor {} no longer matches specialization", i);
 			}
@@ -184,11 +201,10 @@ bool ValidateResourceSpecialization(const Program& program, const ResourceSnapsh
 }
 
 bool MaterializeResources(const Program& program, const SrtRuntime& runtime,
-                          ResourceSnapshot* snapshot, std::string* error) {
-	if (snapshot == nullptr || !program.resource_tracking_complete) {
+	                      ResourceSnapshot& snapshot, std::string* error) {
+	if (!program.resource_tracking_complete) {
 		if (error != nullptr) {
-			*error = snapshot == nullptr ? "invalid resource snapshot"
-			                             : "shader resources were not tracked";
+			*error = "shader resources were not tracked";
 		}
 		return false;
 	}
@@ -213,7 +229,7 @@ bool MaterializeResources(const Program& program, const SrtRuntime& runtime,
 
 	std::vector<DescriptorValue> values;
 	std::vector<uint32_t>        flattened_srt;
-	if (!EvaluateRuntimeSources(program, requests, runtime, &values, &flattened_srt, error)) {
+	if (!EvaluateRuntimeSources(program, requests, runtime, values, flattened_srt, error)) {
 		return false;
 	}
 
@@ -223,6 +239,11 @@ bool MaterializeResources(const Program& program, const SrtRuntime& runtime,
 	cursor += program.info.buffers.size();
 	next.images.assign(cursor, cursor + program.info.images.size());
 	cursor += program.info.images.size();
+	for (auto& descriptor: next.images) {
+		if (!ValidImageDescriptor(descriptor)) {
+			descriptor.dwords.fill(0);
+		}
+	}
 	next.samplers.assign(cursor, cursor + program.info.samplers.size());
 	cursor += program.info.samplers.size();
 	for (const auto& address: program.info.addresses) {
@@ -259,28 +280,34 @@ bool MaterializeResources(const Program& program, const SrtRuntime& runtime,
 	if (!ValidateResourceSnapshot(program, next, error)) {
 		return false;
 	}
-	*snapshot = std::move(next);
+	snapshot = std::move(next);
 	return true;
 }
 
-bool SpecializeResources(Program* program, const ResourceSnapshot& snapshot, std::string* error) {
-	if (program == nullptr || !program->resource_tracking_complete ||
-	    program->shader_info_complete || program->binding_layout_complete) {
+bool SpecializeResources(Program& program, const ResourceSnapshot& snapshot, std::string* error) {
+	if (!program.resource_tracking_complete || program.shader_info_complete ||
+	    program.binding_layout_complete) {
 		if (error != nullptr) {
-			*error = program == nullptr ? "invalid resource specialization program"
-			         : !program->resource_tracking_complete ? "shader resources were not tracked"
-			                                                : "resource specialization is too late";
+			*error = !program.resource_tracking_complete ? "shader resources were not tracked"
+			                                            : "resource specialization is too late";
 		}
 		return false;
 	}
-	if (!ValidateResourceSnapshot(*program, snapshot, error)) {
+	if (!ValidateResourceSnapshot(program, snapshot, error)) {
 		return false;
 	}
 
-	auto next = program->info;
+	auto next = program.info;
 	for (uint32_t i = 0; i < next.buffers.size(); i++) {
-		next.buffers[i].packed_stride     = DescriptorPackedStride(snapshot.buffers[i]);
-		next.buffers[i].descriptor_format = DescriptorBufferFormat(snapshot.buffers[i]);
+		ShaderBufferResource descriptor;
+		if (!DecodeBufferDescriptor(snapshot.buffers[i], descriptor)) {
+			if (error != nullptr) {
+				*error = fmt::format("buffer descriptor {} has invalid width", i);
+			}
+			return false;
+		}
+		next.buffers[i].packed_stride     = descriptor.PackedStride();
+		next.buffers[i].descriptor_format = descriptor.Format();
 	}
 	for (uint32_t i = 0; i < next.addresses.size(); i++) {
 		next.addresses[i].specialized_base =
@@ -319,12 +346,12 @@ bool SpecializeResources(Program* program, const ResourceSnapshot& snapshot, std
 		}
 	}
 	struct ImagePatch {
-		Instruction*            inst;
+		std::reference_wrapper<Instruction> inst;
 		ResourceKind            kind;
 		Decoder::ImageDimension dimension;
 	};
 	std::vector<ImagePatch> patches;
-	for (auto& block: program->blocks) {
+	for (auto& block: program.blocks) {
 		for (auto& inst: block.instructions) {
 			if (inst.memory.kind != ResourceKind::Image &&
 			    inst.memory.kind != ResourceKind::ImageUint &&
@@ -340,13 +367,13 @@ bool SpecializeResources(Program* program, const ResourceSnapshot& snapshot, std
 				return false;
 			}
 			const auto& image = next.images[inst.memory.resource];
-			patches.push_back({&inst, image.kind, image.dimension});
+			patches.push_back({std::ref(inst), image.kind, image.dimension});
 		}
 	}
-	program->info = std::move(next);
+	program.info = std::move(next);
 	for (const auto& patch: patches) {
-		patch.inst->memory.kind            = patch.kind;
-		patch.inst->memory.image_dimension = patch.dimension;
+		patch.inst.get().memory.kind            = patch.kind;
+		patch.inst.get().memory.image_dimension = patch.dimension;
 	}
 	return true;
 }

@@ -3,8 +3,10 @@
 
 #include "common/abi.h"
 #include "common/common.h"
+#include "graphics/guest_gpu/gpu_defs.h"
 #include "graphics/shader/shaderBindings.h"
 
+#include <array>
 #include <memory>
 #include <span>
 #include <string>
@@ -40,8 +42,8 @@ struct ShaderStageRuntime {
 // Resolves an immutable native shader plan against current user data. The prior stage is preserved
 // if any ReadConst, snapshot, or specialization check fails.
 bool ShaderMaterializeStageRuntime(std::shared_ptr<const ShaderRecompiler::IR::Program> program,
-                                   std::span<const uint32_t> user_data, uint64_t shader_base,
-                                   ShaderStageRuntime* stage, std::string* error);
+	                               std::span<const uint32_t> user_data, uint64_t shader_base,
+	                               ShaderStageRuntime& stage, std::string* error);
 
 struct ShaderId {
 	uint32_t              hash0 = 0;
@@ -94,25 +96,27 @@ struct ShaderComputeInputInfo {
 };
 
 struct ShaderPixelInputInfo {
-	uint32_t           interpolator_settings[32]    = {0};
-	uint32_t           input_num                    = 0;
-	uint32_t           ps_system_input_base         = 0;
-	uint8_t            target_output_mode[8]        = {};
-	uint32_t           mrt_output_mask              = 0;
-	uint32_t           descriptor_set               = 0;
-	bool               ps_pos_x                     = false;
-	bool               ps_pos_y                     = false;
-	bool               ps_pos_xy                    = false;
-	bool               ps_pos_z                     = false;
-	bool               ps_pos_w                     = false;
-	bool               ps_front_face                = false;
-	bool               ps_no_perspective            = false;
-	bool               ps_pixel_kill_enable         = false;
-	bool               ps_depth_export_enable       = false;
-	bool               ps_sample_mask_export_enable = false;
-	bool               ps_early_z                   = false;
-	bool               ps_execute_on_noop           = false;
-	ShaderStageRuntime stage;
+	uint32_t                                       interpolator_settings[32]    = {0};
+	uint32_t                                       input_num                    = 0;
+	uint32_t                                       ps_system_input_base         = 0;
+	uint8_t                                        target_output_mode[8]        = {};
+	std::array<Prospero::ColorComponentMapping, 8> target_export_mapping        = {};
+	uint32_t                                       mrt_output_mask              = 0;
+	uint32_t                                       descriptor_set               = 0;
+	bool                                           ps_pos_x                     = false;
+	bool                                           ps_pos_y                     = false;
+	bool                                           ps_pos_xy                    = false;
+	bool                                           ps_pos_z                     = false;
+	bool                                           ps_pos_w                     = false;
+	bool                                           ps_front_face                = false;
+	bool                                           ps_no_perspective            = false;
+	bool                                           ps_pixel_kill_enable         = false;
+	bool                                           ps_depth_export_enable       = false;
+	bool                                           ps_sample_mask_export_enable = false;
+	bool                                           ps_sample_shading            = false;
+	bool                                           ps_early_z                   = false;
+	bool                                           ps_execute_on_noop           = false;
+	ShaderStageRuntime                             stage;
 
 	bool HasPositionInput() const { return ps_pos_x || ps_pos_y || ps_pos_z || ps_pos_w; }
 };
@@ -212,33 +216,33 @@ struct ShaderMappedData {
 void ShaderInit();
 void ShaderMapUserData(uint64_t addr, const ShaderMappedData& data);
 
-void     ShaderDbgDumpInputInfo(const ShaderVertexInputInfo* info);
-void     ShaderDbgDumpInputInfo(const ShaderPixelInputInfo* info);
-void     ShaderDbgDumpInputInfo(const ShaderComputeInputInfo* info);
-ShaderId ShaderGetIdVS(const HW::VertexShaderInfo* regs, const ShaderVertexInputInfo* input_info,
+void     ShaderDbgDumpInputInfo(const ShaderVertexInputInfo& info);
+void     ShaderDbgDumpInputInfo(const ShaderPixelInputInfo& info);
+void     ShaderDbgDumpInputInfo(const ShaderComputeInputInfo& info);
+ShaderId ShaderGetIdVS(const HW::VertexShaderInfo& regs, const ShaderVertexInputInfo& input_info,
                        bool include_bind_specialization);
-ShaderId ShaderGetIdPS(const HW::PixelShaderInfo* regs, const ShaderPixelInputInfo* input_info,
+ShaderId ShaderGetIdPS(const HW::PixelShaderInfo& regs, const ShaderPixelInputInfo& input_info,
                        bool include_bind_specialization);
-ShaderId ShaderGetIdCS(const HW::ComputeShaderInfo* regs, const ShaderComputeInputInfo* input_info,
+ShaderId ShaderGetIdCS(const HW::ComputeShaderInfo& regs, const ShaderComputeInputInfo& input_info,
                        bool include_bind_specialization);
 // Returned SPIR-V spans are read-only views backed by the shader program cache.
-bool ShaderCompileInfoVS(const HW::VertexShaderInfo* regs, const HW::ShaderRegisters* sh,
-                         ShaderLaneMaskMode lane_mask_mode, ShaderVertexInputInfo* input_info,
-                         std::span<const uint32_t>* spirv);
-bool ShaderCompileInfoPS(const HW::PixelShaderInfo* regs, const HW::ShaderRegisters* sh,
-                         ShaderLaneMaskMode lane_mask_mode, const ShaderVertexInputInfo* vs_info,
-                         ShaderPixelInputInfo* input_info, std::span<const uint32_t>* spirv);
-bool ShaderCompileInfoCS(const HW::ComputeShaderInfo* regs, const HW::ShaderRegisters* sh,
-                         ShaderComputeInputInfo* input_info, std::span<const uint32_t>* spirv);
-bool ShaderCompileSpirvVS(const HW::VertexShaderInfo* regs, const HW::ShaderRegisters* sh,
-                          ShaderLaneMaskMode lane_mask_mode, ShaderVertexInputInfo* input_info,
-                          std::vector<uint32_t>* spirv);
-bool ShaderCompileSpirvPS(const HW::PixelShaderInfo* regs, const HW::ShaderRegisters* sh,
-                          ShaderLaneMaskMode lane_mask_mode, ShaderPixelInputInfo* input_info,
-                          std::vector<uint32_t>* spirv);
-bool ShaderCompileSpirvCS(const HW::ComputeShaderInfo* regs, const HW::ShaderRegisters* sh,
-                          ShaderComputeInputInfo* input_info, std::vector<uint32_t>* spirv);
-bool ShaderBindingResearchGuardEnabled();
+bool ShaderCompileInfoVS(const HW::VertexShaderInfo& regs, const HW::ShaderRegisters& sh,
+                         ShaderLaneMaskMode lane_mask_mode, ShaderVertexInputInfo& input_info,
+                         std::span<const uint32_t>& spirv);
+bool ShaderCompileInfoPS(const HW::PixelShaderInfo& regs, const HW::ShaderRegisters& sh,
+                         ShaderLaneMaskMode lane_mask_mode, const ShaderVertexInputInfo& vs_info,
+                         std::span<const Prospero::ColorComponentMapping, 8> target_export_mapping,
+                         ShaderPixelInputInfo& input_info, std::span<const uint32_t>& spirv);
+bool ShaderCompileInfoCS(const HW::ComputeShaderInfo& regs, const HW::ShaderRegisters& sh,
+                         ShaderComputeInputInfo& input_info, std::span<const uint32_t>& spirv);
+bool ShaderCompileSpirvVS(const HW::VertexShaderInfo& regs, const HW::ShaderRegisters& sh,
+                          ShaderLaneMaskMode lane_mask_mode, ShaderVertexInputInfo& input_info,
+                          std::vector<uint32_t>& spirv);
+bool ShaderCompileSpirvPS(const HW::PixelShaderInfo& regs, const HW::ShaderRegisters& sh,
+                          ShaderLaneMaskMode lane_mask_mode, ShaderPixelInputInfo& input_info,
+                          std::vector<uint32_t>& spirv);
+bool ShaderCompileSpirvCS(const HW::ComputeShaderInfo& regs, const HW::ShaderRegisters& sh,
+                          ShaderComputeInputInfo& input_info, std::vector<uint32_t>& spirv);
 bool ShaderAddressValid(uint64_t addr);
 
 } // namespace Libs::Graphics

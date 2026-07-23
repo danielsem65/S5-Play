@@ -6,10 +6,10 @@
 #include <algorithm>
 #include <cstring>
 
-namespace Libs::Graphics::Rt {
+namespace Libs::Graphics {
 namespace {
 
-bool ExtensionAvailable(const std::vector<VkExtensionProperties>& available, const char* name) {
+bool ExtensionAvailable(const std::vector<vk::ExtensionProperties>& available, const char* name) {
 	return std::ranges::any_of(available, [name](const auto& extension) {
 		return std::strcmp(extension.extensionName, name) == 0;
 	});
@@ -25,10 +25,9 @@ void AppendExtensionIfMissing(std::vector<const char*>& extensions, const char* 
 
 } // namespace
 
-void AppendHardwareRayTracingDeviceExtensions(
-    const std::vector<VkExtensionProperties>& available_extensions,
-    std::vector<const char*>* device_extensions, GraphicContext* ctx) {
-	EXIT_IF(device_extensions == nullptr || ctx == nullptr);
+void GraphicContext::AppendHardwareRayTracingDeviceExtensions(
+    const std::vector<vk::ExtensionProperties>& available_extensions,
+    std::vector<const char*>&                   device_extensions) {
 
 	const char* required[] = {
 	    VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
@@ -40,59 +39,39 @@ void AppendHardwareRayTracingDeviceExtensions(
 		if (!ExtensionAvailable(available_extensions, extension)) {
 			LOGF("Vulkan RT: extension %s is unavailable; hardware ray tracing disabled\n",
 			     extension);
-			ctx->rt_extensions_enabled = false;
+			rt_extensions_enabled = false;
 			return;
 		}
 	}
 	for (const auto* extension: required) {
-		AppendExtensionIfMissing(*device_extensions, extension);
+		AppendExtensionIfMissing(device_extensions, extension);
 	}
 	if (ExtensionAvailable(available_extensions, VK_KHR_SPIRV_1_4_EXTENSION_NAME)) {
-		AppendExtensionIfMissing(*device_extensions, VK_KHR_SPIRV_1_4_EXTENSION_NAME);
+		AppendExtensionIfMissing(device_extensions, VK_KHR_SPIRV_1_4_EXTENSION_NAME);
 	}
 	if (ExtensionAvailable(available_extensions, VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME)) {
-		AppendExtensionIfMissing(*device_extensions, VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
+		AppendExtensionIfMissing(device_extensions, VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
 	}
 
-	ctx->rt_extensions_enabled = true;
+	rt_extensions_enabled = true;
 	LOGF("Vulkan RT: enabling hardware ray query extensions\n");
 }
 
-void LoadHardwareRayTracingFunctions(GraphicContext* ctx) {
-	EXIT_IF(ctx == nullptr || ctx->device == nullptr);
-	if (!ctx->rt_extensions_enabled) {
+void GraphicContext::LoadHardwareRayTracingFunctions() const {
+	EXIT_IF(device == nullptr);
+	if (!rt_extensions_enabled) {
 		return;
 	}
 
-	ctx->vkGetBufferDeviceAddressKHR = reinterpret_cast<PFN_vkGetBufferDeviceAddressKHR>(
-	    vkGetDeviceProcAddr(ctx->device, "vkGetBufferDeviceAddressKHR"));
-	if (ctx->vkGetBufferDeviceAddressKHR == nullptr) {
-		ctx->vkGetBufferDeviceAddressKHR = reinterpret_cast<PFN_vkGetBufferDeviceAddressKHR>(
-		    vkGetDeviceProcAddr(ctx->device, "vkGetBufferDeviceAddress"));
-	}
-	ctx->vkCreateAccelerationStructureKHR = reinterpret_cast<PFN_vkCreateAccelerationStructureKHR>(
-	    vkGetDeviceProcAddr(ctx->device, "vkCreateAccelerationStructureKHR"));
-	ctx->vkDestroyAccelerationStructureKHR =
-	    reinterpret_cast<PFN_vkDestroyAccelerationStructureKHR>(
-	        vkGetDeviceProcAddr(ctx->device, "vkDestroyAccelerationStructureKHR"));
-	ctx->vkGetAccelerationStructureBuildSizesKHR =
-	    reinterpret_cast<PFN_vkGetAccelerationStructureBuildSizesKHR>(
-	        vkGetDeviceProcAddr(ctx->device, "vkGetAccelerationStructureBuildSizesKHR"));
-	ctx->vkCmdBuildAccelerationStructuresKHR =
-	    reinterpret_cast<PFN_vkCmdBuildAccelerationStructuresKHR>(
-	        vkGetDeviceProcAddr(ctx->device, "vkCmdBuildAccelerationStructuresKHR"));
-	ctx->vkGetAccelerationStructureDeviceAddressKHR =
-	    reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(
-	        vkGetDeviceProcAddr(ctx->device, "vkGetAccelerationStructureDeviceAddressKHR"));
-
-	if (ctx->vkGetBufferDeviceAddressKHR == nullptr ||
-	    ctx->vkCreateAccelerationStructureKHR == nullptr ||
-	    ctx->vkDestroyAccelerationStructureKHR == nullptr ||
-	    ctx->vkGetAccelerationStructureBuildSizesKHR == nullptr ||
-	    ctx->vkCmdBuildAccelerationStructuresKHR == nullptr ||
-	    ctx->vkGetAccelerationStructureDeviceAddressKHR == nullptr) {
+	const auto& dispatcher = VULKAN_HPP_DEFAULT_DISPATCHER;
+	if (dispatcher.vkGetBufferDeviceAddressKHR == nullptr ||
+	    dispatcher.vkCreateAccelerationStructureKHR == nullptr ||
+	    dispatcher.vkDestroyAccelerationStructureKHR == nullptr ||
+	    dispatcher.vkGetAccelerationStructureBuildSizesKHR == nullptr ||
+	    dispatcher.vkCmdBuildAccelerationStructuresKHR == nullptr ||
+	    dispatcher.vkGetAccelerationStructureDeviceAddressKHR == nullptr) {
 		EXIT("Vulkan RT: failed to load required device functions\n");
 	}
 }
 
-} // namespace Libs::Graphics::Rt
+} // namespace Libs::Graphics

@@ -1,6 +1,7 @@
 #include "graphics/host_gpu/renderer/gpuResourceManager.h"
 
 #include "common/assert.h"
+#include "graphics/guest_gpu/command_processor/commandProcessor.h"
 #include "graphics/guest_gpu/graphicsRun.h"
 #include "graphics/host_gpu/objects/label.h"
 #include "graphics/host_gpu/renderer/render.h"
@@ -8,9 +9,9 @@
 
 namespace Libs::Graphics {
 
-GpuResourceManager::GpuResourceManager()
-    : m_page_manager(FaultThunk, this), m_buffer_cache(m_page_manager, m_resource_mutex),
-      m_texture_cache(m_page_manager, m_buffer_cache, m_resource_mutex) {
+GpuResourceManager::GpuResourceManager(GraphicContext& graphics)
+    : m_page_manager(FaultThunk, this), m_buffer_cache(graphics, m_page_manager, m_resource_mutex),
+      m_texture_cache(graphics, m_page_manager, m_buffer_cache, m_resource_mutex) {
 	m_buffer_cache.SetTextureCache(m_texture_cache);
 }
 
@@ -37,53 +38,65 @@ bool GpuResourceManager::HandleFault(PageFaultAccess access, uint64_t fault_vadd
 		     "addr=0x%016" PRIx64 " access=%u\n",
 		     fault_vaddr, static_cast<uint32_t>(access));
 	}
-	if (m_resource_mutex.IsOwnedByCurrentThread()) {
-		if (!GraphicsRunIsCommandProcessorGuestAccess()) {
-			EXIT("unsupported page fault from a pre-owned resource transaction, addr=0x%016" PRIx64
-			     " access=%u\n",
-			     fault_vaddr, static_cast<uint32_t>(access));
+	if (auto* cp = GraphicsRunCurrentCommandProcessor(); cp != nullptr) {
+		cp->BeginReadbackTransaction();
+		bool handled = false;
+		{
+			ResourceMutex::FaultScope fault(m_resource_mutex);
+			handled = m_page_manager.HandleFault(access, fault_vaddr);
 		}
-		ResourceMutex::FaultScope fault(m_resource_mutex);
-		return m_page_manager.HandleFault(access, fault_vaddr);
+		cp->EndReadbackTransaction();
+		return handled;
+	}
+	if (m_resource_mutex.IsOwnedByCurrentThread()) {
+		EXIT("unsupported page fault from a pre-owned resource transaction, addr=0x%016" PRIx64
+		     " access=%u\n",
+		     fault_vaddr, static_cast<uint32_t>(access));
 	}
 	// Stop command-processor jobs before taking the shared cache transaction. External readback
-	// workers inherit this paused state and therefore never form resource -> submission lock inversion.
+	// workers inherit this paused state and therefore never form resource -> submission lock
+	// inversion.
 	GraphicsRunSubmissionLock submissions;
 	ResourceMutex::FaultScope fault(m_resource_mutex);
 	return m_page_manager.HandleFault(access, fault_vaddr);
 }
 
+void GpuResourceManager::PrepareHostWrite(uint64_t vaddr, uint64_t size) {
+	if (!m_page_manager.HasAnyMapping(vaddr, size)) {
+		return;
+	}
+	if (LabelInCallback()) {
+		EXIT("unsupported host write from an asynchronous GPU label callback, addr=0x%016" PRIx64
+		     " size=0x%016" PRIx64 "\n",
+		     vaddr, size);
+	}
+	const auto handle_range = [this, vaddr, size]() {
+		if (!m_page_manager.HandleWriteRange(vaddr, size)) {
+			EXIT("failed to prepare host write, addr=0x%016" PRIx64 " size=0x%016" PRIx64 "\n",
+			     vaddr, size);
+		}
+	};
+	if (auto* cp = GraphicsRunCurrentCommandProcessor(); cp != nullptr) {
+		cp->BeginReadbackTransaction();
+		{
+			ResourceMutex::FaultScope fault(m_resource_mutex);
+			handle_range();
+		}
+		cp->EndReadbackTransaction();
+		return;
+	}
+	if (m_resource_mutex.IsOwnedByCurrentThread()) {
+		EXIT("unsupported host write from a pre-owned resource transaction, addr=0x%016" PRIx64
+		     " size=0x%016" PRIx64 "\n",
+		     vaddr, size);
+	}
+	GraphicsRunSubmissionLock submissions;
+	ResourceMutex::FaultScope fault(m_resource_mutex);
+	handle_range();
+}
+
 bool GpuResourceManager::IsMapped(uint64_t vaddr, uint64_t size) const noexcept {
 	return m_page_manager.IsMapped(vaddr, size);
-}
-
-std::unique_lock<ResourceMutex> GpuResourceManager::LockCommandProcessorGuestAccess(
-    uint64_t vaddr, uint64_t size) {
-	if (vaddr == 0 || size == 0 || vaddr >= TRACKER_ADDRESS_SIZE ||
-	    size > TRACKER_ADDRESS_SIZE - vaddr) {
-		EXIT("invalid command-processor guest-memory access, addr=0x%016" PRIx64
-		     " size=0x%016" PRIx64 "\n",
-		     vaddr, size);
-	}
-	return std::unique_lock(m_resource_mutex);
-}
-
-std::unique_lock<ResourceMutex> GpuResourceManager::LockAsynchronousGuestWrite(uint64_t vaddr,
-                                                                                uint64_t size) {
-	if (vaddr == 0 || size == 0 || vaddr >= TRACKER_ADDRESS_SIZE ||
-	    size > TRACKER_ADDRESS_SIZE - vaddr) {
-		EXIT("invalid asynchronous guest-memory write, addr=0x%016" PRIx64
-		     " size=0x%016" PRIx64 "\n",
-		     vaddr, size);
-	}
-	std::unique_lock transaction(m_resource_mutex);
-	if (m_buffer_cache.HasPageOverlap(vaddr, size) || m_texture_cache.HasPageOverlap(vaddr, size) ||
-	    m_texture_cache.HasMetaOverlap(vaddr, size)) {
-		EXIT("asynchronous guest-memory write to a cached buffer/image range is unsupported, "
-		     "addr=0x%016" PRIx64 " size=0x%016" PRIx64 "\n",
-		     vaddr, size);
-	}
-	return transaction;
 }
 
 void GpuResourceManager::MapMemory(uint64_t vaddr, uint64_t size, GpuAccess access) {
@@ -99,22 +112,22 @@ void GpuResourceManager::UnmapMemory(uint64_t vaddr, uint64_t size, GpuAccess ac
 	m_page_manager.OnGpuUnmap(vaddr, size, access);
 }
 
-void GpuResourceManager::FillBuffer(CommandBuffer* command, uint64_t vaddr, uint64_t size,
+void GpuResourceManager::FillBuffer(CommandBuffer& command, uint64_t vaddr, uint64_t size,
                                     uint32_t value) {
-	if (g_render_ctx == nullptr || command == nullptr || command->IsInvalid()) {
+	if (command.IsInvalid()) {
 		EXIT("cannot fill a buffer without a valid render command context\n");
 	}
-	Common::LockGuard lock(g_render_ctx->GetMutex());
-	m_buffer_cache.FillBuffer(command, g_render_ctx->GetGraphicCtx(), vaddr, size, value);
+	Common::LockGuard lock(GetRenderContext().GetMutex());
+	m_buffer_cache.FillBuffer(&command, vaddr, size, value);
 }
 
-void GpuResourceManager::CopyBuffer(CommandBuffer* command, uint64_t dst_vaddr, uint64_t src_vaddr,
+void GpuResourceManager::CopyBuffer(CommandBuffer& command, uint64_t dst_vaddr, uint64_t src_vaddr,
                                     uint64_t size) {
-	if (g_render_ctx == nullptr || command == nullptr || command->IsInvalid()) {
+	if (command.IsInvalid()) {
 		EXIT("cannot copy a buffer without a valid render command context\n");
 	}
-	Common::LockGuard lock(g_render_ctx->GetMutex());
-	m_buffer_cache.CopyBuffer(command, g_render_ctx->GetGraphicCtx(), dst_vaddr, src_vaddr, size);
+	Common::LockGuard lock(GetRenderContext().GetMutex());
+	m_buffer_cache.CopyBuffer(&command, dst_vaddr, src_vaddr, size);
 }
 
 } // namespace Libs::Graphics

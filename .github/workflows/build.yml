@@ -20,8 +20,6 @@ jobs:
 
       - name: Install clang-cl
         run: |
-          # clang-cl ships with VS 2022 on the runner
-          echo "VS installed, checking clang-cl..."
           & "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\Llvm\bin\clang-cl.exe" --version
 
       - name: Install Ninja

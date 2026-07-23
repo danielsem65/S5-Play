@@ -1,3 +1,5 @@
+#include "graphics/host_gpu/renderer/renderTargetBarriers.h"
+
 #include "common/assert.h"
 #include "common/common.h"
 #include "common/logging/log.h"
@@ -9,12 +11,12 @@
 #include "graphics/guest_gpu/tile.h"
 #include "graphics/host_gpu/graphicContext.h"
 #include "graphics/host_gpu/objects/textureCommon.h"
-#include "graphics/host_gpu/renderer/descriptorCache.h"
 #include "graphics/host_gpu/renderer/framebufferCache.h"
+#include "graphics/host_gpu/renderer/imageView.h"
 #include "graphics/host_gpu/renderer/render.h"
 #include "graphics/host_gpu/renderer/renderContext.h"
-#include "graphics/host_gpu/renderer/renderState.h"
-#include "graphics/host_gpu/utils.h"
+#include "graphics/host_gpu/transfer.h"
+#include "graphics/host_gpu/vulkanCommon.h"
 #include "graphics/presentation/displayBuffer.h"
 
 #include <algorithm>
@@ -23,204 +25,197 @@
 #include <cstdarg>
 #include <cstdio>
 #include <limits>
-#include <vulkan/vk_enum_string_helper.h>
 
 namespace Libs::Graphics {
 
-void GraphicsRenderMemoryBarrier(CommandBuffer* buffer) {
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
+void GraphicsRenderMemoryBarrier(CommandBuffer& buffer) {
+	EXIT_IF(buffer.IsInvalid());
 
-	Common::LockGuard lock(g_render_ctx->GetMutex());
+	Common::LockGuard lock(GetRenderContext().GetMutex());
 
-	auto* vk_buffer = buffer->GetPool()->buffers[buffer->GetIndex()];
+	auto vk_buffer = buffer.Handle();
 
-	VkMemoryBarrier mem_barrier {};
-	mem_barrier.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+	VulkanMemoryBarrier mem_barrier {};
+	mem_barrier.sType         = vk::StructureType::eMemoryBarrier;
 	mem_barrier.pNext         = nullptr;
-	mem_barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
-	mem_barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+	mem_barrier.srcAccessMask = vk::AccessFlagBits::eMemoryWrite;
+	mem_barrier.dstAccessMask = vk::AccessFlagBits::eMemoryRead | vk::AccessFlagBits::eMemoryWrite;
 
-	vkCmdPipelineBarrier(vk_buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-	                     VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 1, &mem_barrier, 0, nullptr, 0,
-	                     nullptr);
+	vk_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
+	                          vk::PipelineStageFlagBits::eAllCommands, vk::DependencyFlags {}, 1,
+	                          &mem_barrier, 0, nullptr, 0, nullptr);
 }
 
-void GraphicsRenderTextureBarrier(VkCommandBuffer vk_buffer, VulkanImage* image) {
-	EXIT_IF(image == nullptr);
+void GraphicsRenderTextureBarrier(vk::CommandBuffer vk_buffer, VulkanImage& image) {
 
-	VkImageMemoryBarrier image_memory_barrier {};
-	image_memory_barrier.sType         = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	image_memory_barrier.pNext         = nullptr;
-	image_memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
-	                                     VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_SHADER_WRITE_BIT |
-	                                     VK_ACCESS_MEMORY_READ_BIT;
-	image_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-	image_memory_barrier.oldLayout     = image->layout;
-	image_memory_barrier.newLayout     = RENDER_COLOR_IMAGE_LAYOUT;
+	vk::ImageMemoryBarrier image_memory_barrier {};
+	image_memory_barrier.sType = vk::StructureType::eImageMemoryBarrier;
+	image_memory_barrier.pNext = nullptr;
+	image_memory_barrier.srcAccessMask =
+	    vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eTransferWrite |
+	    vk::AccessFlagBits::eShaderWrite | vk::AccessFlagBits::eMemoryRead;
+	image_memory_barrier.dstAccessMask                   = vk::AccessFlagBits::eShaderRead;
+	image_memory_barrier.oldLayout                       = image.layout;
+	image_memory_barrier.newLayout                       = RENDER_COLOR_IMAGE_LAYOUT;
 	image_memory_barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
 	image_memory_barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-	image_memory_barrier.image                           = image->image;
-	image_memory_barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_memory_barrier.image                           = image.image;
+	image_memory_barrier.subresourceRange.aspectMask     = vk::ImageAspectFlagBits::eColor;
 	image_memory_barrier.subresourceRange.baseMipLevel   = 0;
 	image_memory_barrier.subresourceRange.levelCount     = VK_REMAINING_MIP_LEVELS;
 	image_memory_barrier.subresourceRange.baseArrayLayer = 0;
-	image_memory_barrier.subresourceRange.layerCount     = image->layers;
+	image_memory_barrier.subresourceRange.layerCount     = image.layers;
 
-	vkCmdPipelineBarrier(
-	    vk_buffer,
-	    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
-	        VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-	    VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
-	        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-	    0, 0, nullptr, 0, nullptr, 1, &image_memory_barrier);
+	vk_buffer.pipelineBarrier(
+	    vk::PipelineStageFlagBits::eColorAttachmentOutput |
+	        vk::PipelineStageFlagBits::eComputeShader | vk::PipelineStageFlagBits::eTransfer |
+	        vk::PipelineStageFlagBits::eFragmentShader,
+	    vk::PipelineStageFlagBits::eVertexShader | vk::PipelineStageFlagBits::eFragmentShader |
+	        vk::PipelineStageFlagBits::eComputeShader,
+	    vk::DependencyFlags {}, 0, nullptr, 0, nullptr, 1, &image_memory_barrier);
 
-	image->layout = image_memory_barrier.newLayout;
+	image.layout = image_memory_barrier.newLayout;
 }
 
-void GraphicsRenderColorImageBarrier(VkCommandBuffer vk_buffer, VulkanImage* image,
-                                     VkImageLayout new_layout) {
-	EXIT_IF(image == nullptr);
-
-	if (image->layout != new_layout) {
-		if (image->type == VulkanImageType::VideoOut &&
-		    image->layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+void GraphicsRenderColorImageBarrier(vk::CommandBuffer vk_buffer, VulkanImage& image,
+                                     vk::ImageLayout new_layout) {
+	if (image.layout != new_layout) {
+		if (image.type == VulkanImageType::VideoOut &&
+		    image.layout == vk::ImageLayout::eTransferDstOptimal) {
 			static std::atomic<uint32_t> log_count {0};
 			if (log_count.fetch_add(1, std::memory_order_relaxed) < 128) {
 				LOGF("GraphicsRenderColorImageBarrier: image=%p type=%d layout=%s -> %s\n",
-				     reinterpret_cast<void*>(image->image), static_cast<int>(image->type),
-				     string_VkImageLayout(image->layout), string_VkImageLayout(new_layout));
+				     VulkanHandleToPointer(image.image), static_cast<int>(image.type),
+				     VulkanToString(image.layout).c_str(), VulkanToString(new_layout).c_str());
 			}
 		}
-		VkImageMemoryBarrier image_memory_barrier {};
-		image_memory_barrier.sType         = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		image_memory_barrier.pNext         = nullptr;
-		image_memory_barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
-		image_memory_barrier.dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
-		image_memory_barrier.oldLayout     = image->layout;
-		image_memory_barrier.newLayout     = new_layout;
+		vk::ImageMemoryBarrier image_memory_barrier {};
+		image_memory_barrier.sType = vk::StructureType::eImageMemoryBarrier;
+		image_memory_barrier.pNext = nullptr;
+		image_memory_barrier.srcAccessMask =
+		    vk::AccessFlagBits::eMemoryWrite | vk::AccessFlagBits::eMemoryRead;
+		image_memory_barrier.dstAccessMask =
+		    vk::AccessFlagBits::eMemoryWrite | vk::AccessFlagBits::eMemoryRead;
+		image_memory_barrier.oldLayout                       = image.layout;
+		image_memory_barrier.newLayout                       = new_layout;
 		image_memory_barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
 		image_memory_barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-		image_memory_barrier.image                           = image->image;
-		image_memory_barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+		image_memory_barrier.image                           = image.image;
+		image_memory_barrier.subresourceRange.aspectMask     = vk::ImageAspectFlagBits::eColor;
 		image_memory_barrier.subresourceRange.baseMipLevel   = 0;
 		image_memory_barrier.subresourceRange.levelCount     = VK_REMAINING_MIP_LEVELS;
 		image_memory_barrier.subresourceRange.baseArrayLayer = 0;
-		image_memory_barrier.subresourceRange.layerCount     = image->layers;
+		image_memory_barrier.subresourceRange.layerCount     = image.layers;
 
-		const auto stages = static_cast<VkPipelineStageFlags>(VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT |
-		                                                      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
-		                                                      VK_PIPELINE_STAGE_TRANSFER_BIT);
-		vkCmdPipelineBarrier(vk_buffer, stages, stages, 0, 0, nullptr, 0, nullptr, 1,
-		                     &image_memory_barrier);
+		const auto stages = static_cast<vk::PipelineStageFlags>(
+		    vk::PipelineStageFlagBits::eAllGraphics | vk::PipelineStageFlagBits::eComputeShader |
+		    vk::PipelineStageFlagBits::eTransfer);
+		vk_buffer.pipelineBarrier(stages, stages, vk::DependencyFlags {}, 0, nullptr, 0, nullptr, 1,
+		                          &image_memory_barrier);
 
-		image->layout = image_memory_barrier.newLayout;
+		image.layout = image_memory_barrier.newLayout;
 	}
 }
 
-VkImageAspectFlags DepthStencilAspectMask(VkFormat format);
-
-void GraphicsRenderDepthStencilImageBarrier(VkCommandBuffer vk_buffer, VulkanImage* image,
-                                            VkImageLayout new_layout) {
-	EXIT_IF(image == nullptr);
-	EXIT_IF(image->type != VulkanImageType::DepthStencil);
-	if (new_layout == VK_IMAGE_LAYOUT_UNDEFINED || new_layout == VK_IMAGE_LAYOUT_PREINITIALIZED) {
+void GraphicsRenderDepthStencilImageBarrier(vk::CommandBuffer vk_buffer, VulkanImage& image,
+                                            vk::ImageLayout new_layout) {
+	EXIT_IF(image.type != VulkanImageType::DepthStencil);
+	if (new_layout == vk::ImageLayout::eUndefined ||
+	    new_layout == vk::ImageLayout::ePreinitialized) {
 		EXIT("invalid destination depth/stencil image layout: %s\n",
-		     string_VkImageLayout(new_layout));
+		     VulkanToString(new_layout).c_str());
 	}
-	if (image->layout == new_layout) {
+	if (image.layout == new_layout) {
 		return;
 	}
-	VkImageMemoryBarrier barrier {};
-	barrier.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	barrier.srcAccessMask       = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
-	barrier.dstAccessMask       = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
-	barrier.oldLayout           = image->layout;
-	barrier.newLayout           = new_layout;
+	vk::ImageMemoryBarrier barrier {};
+	barrier.sType         = vk::StructureType::eImageMemoryBarrier;
+	barrier.srcAccessMask = vk::AccessFlagBits::eMemoryRead | vk::AccessFlagBits::eMemoryWrite;
+	barrier.dstAccessMask = vk::AccessFlagBits::eMemoryRead | vk::AccessFlagBits::eMemoryWrite;
+	barrier.oldLayout     = image.layout;
+	barrier.newLayout     = new_layout;
 	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.image               = image->image;
-	barrier.subresourceRange = {DepthStencilAspectMask(image->format), 0, VK_REMAINING_MIP_LEVELS,
-	                            0, image->layers};
-	const auto stages = static_cast<VkPipelineStageFlags>(VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT |
-	                                                      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
-	                                                      VK_PIPELINE_STAGE_TRANSFER_BIT);
-	vkCmdPipelineBarrier(vk_buffer, stages, stages, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-	image->layout = new_layout;
+	barrier.image               = image.image;
+	barrier.subresourceRange    = {ImageViewOps::DepthAspectMask(image.format), 0,
+	                               VK_REMAINING_MIP_LEVELS, 0, image.layers};
+	const auto stages           = static_cast<vk::PipelineStageFlags>(
+	    vk::PipelineStageFlagBits::eAllGraphics | vk::PipelineStageFlagBits::eComputeShader |
+	    vk::PipelineStageFlagBits::eTransfer);
+	vk_buffer.pipelineBarrier(stages, stages, vk::DependencyFlags {}, 0, nullptr, 0, nullptr, 1,
+	                          &barrier);
+	image.layout = new_layout;
 }
 
-void GraphicsRenderDepthStencilBarrier(VkCommandBuffer vk_buffer, VulkanImage* image) {
-	EXIT_IF(image == nullptr);
+void GraphicsRenderDepthStencilBarrier(vk::CommandBuffer vk_buffer, VulkanImage& image) {
+	EXIT_IF(image.type != VulkanImageType::DepthStencil);
 
-	EXIT_IF(image->type != VulkanImageType::DepthStencil);
-
-	auto* depth = static_cast<DepthStencilVulkanImage*>(image);
-	if (depth->compressed) {
+	auto& depth = static_cast<DepthStencilVulkanImage&>(image);
+	if (depth.compressed) {
 		static std::atomic<uint32_t> log_count {0};
 		if (log_count.fetch_add(1, std::memory_order_relaxed) < 16) {
 			LOGF(
 			    "DepthTexture: decompressing depth target for shader read format=%s extent=%ux%u\n",
-			    string_VkFormat(depth->format), depth->extent.width, depth->extent.height);
+			    VulkanToString(depth.format).c_str(), depth.extent.width, depth.extent.height);
 		}
-		depth->compressed = false;
+		depth.compressed = false;
 	}
 
-	if (image->layout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL) {
-		VkImageMemoryBarrier image_memory_barrier {};
-		image_memory_barrier.sType         = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		image_memory_barrier.pNext         = nullptr;
-		image_memory_barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
-		image_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		image_memory_barrier.oldLayout     = image->layout;
-		image_memory_barrier.newLayout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-		image_memory_barrier.srcQueueFamilyIndex           = VK_QUEUE_FAMILY_IGNORED;
-		image_memory_barrier.dstQueueFamilyIndex           = VK_QUEUE_FAMILY_IGNORED;
-		image_memory_barrier.image                         = image->image;
-		image_memory_barrier.subresourceRange.aspectMask   = DepthStencilAspectMask(image->format);
-		image_memory_barrier.subresourceRange.baseMipLevel = 0;
-		image_memory_barrier.subresourceRange.levelCount   = VK_REMAINING_MIP_LEVELS;
+	if (image.layout != vk::ImageLayout::eDepthStencilReadOnlyOptimal) {
+		vk::ImageMemoryBarrier image_memory_barrier {};
+		image_memory_barrier.sType = vk::StructureType::eImageMemoryBarrier;
+		image_memory_barrier.pNext = nullptr;
+		image_memory_barrier.srcAccessMask =
+		    vk::AccessFlagBits::eMemoryRead | vk::AccessFlagBits::eMemoryWrite;
+		image_memory_barrier.dstAccessMask       = vk::AccessFlagBits::eShaderRead;
+		image_memory_barrier.oldLayout           = image.layout;
+		image_memory_barrier.newLayout           = vk::ImageLayout::eDepthStencilReadOnlyOptimal;
+		image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		image_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		image_memory_barrier.image               = image.image;
+		image_memory_barrier.subresourceRange.aspectMask =
+		    ImageViewOps::DepthAspectMask(image.format);
+		image_memory_barrier.subresourceRange.baseMipLevel   = 0;
+		image_memory_barrier.subresourceRange.levelCount     = VK_REMAINING_MIP_LEVELS;
 		image_memory_barrier.subresourceRange.baseArrayLayer = 0;
-		image_memory_barrier.subresourceRange.layerCount     = image->layers;
+		image_memory_barrier.subresourceRange.layerCount     = image.layers;
 
-		vkCmdPipelineBarrier(
-		    vk_buffer,
-		    VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
-		        VK_PIPELINE_STAGE_TRANSFER_BIT,
-		    VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
-		        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-		    0, 0, nullptr, 0, nullptr, 1, &image_memory_barrier);
+		vk_buffer.pipelineBarrier(
+		    vk::PipelineStageFlagBits::eAllGraphics | vk::PipelineStageFlagBits::eComputeShader |
+		        vk::PipelineStageFlagBits::eTransfer,
+		    vk::PipelineStageFlagBits::eVertexShader | vk::PipelineStageFlagBits::eFragmentShader |
+		        vk::PipelineStageFlagBits::eComputeShader,
+		    vk::DependencyFlags {}, 0, nullptr, 0, nullptr, 1, &image_memory_barrier);
 
-		image->layout = image_memory_barrier.newLayout;
+		image.layout = image_memory_barrier.newLayout;
 	}
 }
 
-void GraphicsRenderTextureBarrier(CommandBuffer* buffer, uint64_t vaddr, uint64_t size) {
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
+void GraphicsRenderTextureBarrier(CommandBuffer& buffer, uint64_t vaddr, uint64_t size) {
+	EXIT_IF(buffer.IsInvalid());
 
-	Common::LockGuard lock(g_render_ctx->GetMutex());
+	Common::LockGuard lock(GetRenderContext().GetMutex());
 
-	auto* vk_buffer = buffer->GetPool()->buffers[buffer->GetIndex()];
+	auto vk_buffer = buffer.Handle();
 
-	auto* native = g_render_ctx->GetTextureCache()->FindRenderTargetByRange(buffer, vaddr, size);
+	auto* native = GetRenderContext().GetTextureCache().FindRenderTargetByRange(buffer, vaddr, size);
 	if (native == nullptr) {
 		EXIT("render-target barrier range has no cached image\n");
 	}
-	GraphicsRenderTextureBarrier(vk_buffer, native);
+	GraphicsRenderTextureBarrier(vk_buffer, *native);
 }
 
-void GraphicsRenderDepthStencilBarrier(CommandBuffer* buffer, uint64_t vaddr, uint64_t size) {
-	EXIT_IF(buffer == nullptr);
-	EXIT_IF(buffer->IsInvalid());
+void GraphicsRenderDepthStencilBarrier(CommandBuffer& buffer, uint64_t vaddr, uint64_t size) {
+	EXIT_IF(buffer.IsInvalid());
 
-	Common::LockGuard lock(g_render_ctx->GetMutex());
+	Common::LockGuard lock(GetRenderContext().GetMutex());
 
-	auto* vk_buffer = buffer->GetPool()->buffers[buffer->GetIndex()];
-	auto* native    = g_render_ctx->GetTextureCache()->FindDepthTargetByRange(vaddr, size);
+	auto  vk_buffer = buffer.Handle();
+	auto* native    = GetRenderContext().GetTextureCache().FindDepthTargetByRange(buffer, vaddr, size);
 	if (native == nullptr) {
 		EXIT("depth-target barrier range has no cached image\n");
 	}
-	GraphicsRenderDepthStencilBarrier(vk_buffer, native);
+	GraphicsRenderDepthStencilBarrier(vk_buffer, *native);
 }
 
 } // namespace Libs::Graphics

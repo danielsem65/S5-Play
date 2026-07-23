@@ -137,7 +137,7 @@ config_compiler_and_linker()
 add_subdirectory("${KYTY_THIRD_PARTY_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/3rdparty")
 add_subdirectory(common)
 
-file(GLOB kyty_emulator_src
+file(GLOB kyty_emulator_src CONFIGURE_DEPENDS
 	libs/*.cpp
 	libs/*.h
 	graphics/*.cpp
@@ -170,6 +170,40 @@ file(GLOB kyty_emulator_src
 	loader/*.h
 )
 
+find_program(KYTY_GLSLANG_VALIDATOR glslangValidator REQUIRED)
+set(gpu_tiler_shader_dir "${CMAKE_CURRENT_SOURCE_DIR}/graphics/host_gpu/shaders")
+set(gpu_tiler_generated_dir "${PROJECT_BINARY_DIR}/gpu_tiler_shaders")
+set(gpu_tiler_shader_names
+	standard256
+	standard4
+	standard4_3d
+	standard64
+	standard64_3d
+	prt
+	prt_3d
+	render_target
+	depth
+)
+file(GLOB gpu_tiler_shader_includes CONFIGURE_DEPENDS "${gpu_tiler_shader_dir}/gpu_tiler_*.inc")
+foreach(shader_name IN LISTS gpu_tiler_shader_names)
+	set(shader_source "${gpu_tiler_shader_dir}/gpu_tiler_${shader_name}.comp")
+	set(shader_spv "${gpu_tiler_generated_dir}/gpu_tiler_${shader_name}.spv")
+	set(shader_header "${gpu_tiler_generated_dir}/gpu_tiler_${shader_name}_spv.h")
+	string(TOUPPER "GPU_TILER_${shader_name}_SPV" shader_symbol)
+	add_custom_command(
+		OUTPUT "${shader_header}"
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${gpu_tiler_generated_dir}"
+		COMMAND "${KYTY_GLSLANG_VALIDATOR}" -V --target-env vulkan1.0 -Os
+		        "-I${gpu_tiler_shader_dir}" -o "${shader_spv}" "${shader_source}"
+		COMMAND ${CMAKE_COMMAND} -DINPUT=${shader_spv} -DOUTPUT=${shader_header}
+		        -DSYMBOL=${shader_symbol} -P "${CMAKE_CURRENT_SOURCE_DIR}/embed_spirv.cmake"
+		DEPENDS "${shader_source}" ${gpu_tiler_shader_includes}
+		VERBATIM
+	)
+	list(APPEND gpu_tiler_shader_headers "${shader_header}")
+endforeach()
+list(APPEND kyty_emulator_src ${gpu_tiler_shader_headers})
+
 list(APPEND kyty_emulator_src
 	emulator.h
 	emulator.cpp
@@ -180,12 +214,11 @@ if (KYTY_CLANG_CL)
 	set_source_files_properties(${kyty_emulator_src} PROPERTIES COMPILE_FLAGS "-Wno-pragma-pack -Wno-deprecated-declarations -D_TIMESPEC_DEFINED")
 endif()
 
-set(kyty_emulator_link_libraries common vulkan-1 spirv-tools-opt spirv-tools SDL2-static xxhash FFmpeg::ffmpeg fmt::fmt nlohmann_json::nlohmann_json LibAtrac9)
+set(kyty_emulator_link_libraries common Vulkan::Headers spirv-tools-opt spirv-tools SDL2-static xxhash FFmpeg::ffmpeg fmt::fmt nlohmann_json::nlohmann_json LibAtrac9)
 
 set(inc_headers
 	${CMAKE_CURRENT_SOURCE_DIR}
 	${KYTY_THIRD_PARTY_DIR}/SDL2/include
-	${KYTY_THIRD_PARTY_DIR}/Vulkan-Headers/include
 	${KYTY_THIRD_PARTY_DIR}/VulkanMemoryAllocator/include
 	${KYTY_THIRD_PARTY_DIR}/SPIRV-Tools/include
 	${KYTY_THIRD_PARTY_DIR}/fmt/include
@@ -193,10 +226,6 @@ set(inc_headers
 	${KYTY_THIRD_PARTY_DIR}/cpuinfo/include
 	${KYTY_THIRD_PARTY_DIR}/stb
 )
-
-if(DEFINED ENV{VULKAN_SDK})
-	list(APPEND inc_headers $ENV{VULKAN_SDK}/Include)
-endif()
 
 if (KYTY_CLANG_CL)
 	list(APPEND kyty_emulator_link_libraries winpthread)
@@ -289,9 +318,16 @@ add_executable(resource_mutex_tests EXCLUDE_FROM_ALL
 target_link_libraries(resource_mutex_tests common)
 target_include_directories(resource_mutex_tests PRIVATE ${inc_headers})
 
+add_executable(image_page_table_tests EXCLUDE_FROM_ALL
+	../tests/ImagePageTableTests.cpp
+)
+target_include_directories(image_page_table_tests PRIVATE ${inc_headers})
+
 add_kyty_full_emulator_test(shader_recompiler_compute_tests ../tests/ShaderRecompilerComputeTests.cpp)
 
 add_kyty_full_emulator_test(virtual_memory_allocation_tests ../tests/VirtualMemoryAllocationTests.cpp)
+target_compile_definitions(virtual_memory_allocation_tests PRIVATE
+	KYTY_VIRTUAL_MEMORY_ALLOCATION_TESTS=1)
 
 
 add_executable(kyty_emulator main.cpp ${kyty_emulator_src})
