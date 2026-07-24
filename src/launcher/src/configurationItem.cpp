@@ -41,10 +41,10 @@ protected:
 QString GetStatusText(Configuration::GameStatus status) {
 	switch (status) {
 		case Configuration::GameStatus::Unknown: return QStringLiteral("Unknown");
-		case Configuration::GameStatus::MainMenu: return QStringLiteral("Main menu");
-		case Configuration::GameStatus::InGame: return QStringLiteral("In game");
-		case Configuration::GameStatus::Logo: return QStringLiteral("Logo");
-		case Configuration::GameStatus::DoesntBoot: return QStringLiteral("Doesn't boot");
+		case Configuration::GameStatus::MainMenu: return QStringLiteral("Main Menu");
+		case Configuration::GameStatus::InGame: return QStringLiteral("Playable");
+		case Configuration::GameStatus::Logo: return QStringLiteral("Boots to Logo");
+		case Configuration::GameStatus::DoesntBoot: return QStringLiteral("Doesn't Boot");
 	}
 
 	return QStringLiteral("Unknown");
@@ -56,10 +56,10 @@ QString GetStatusColor(Configuration::GameStatus status) {
 		case Configuration::GameStatus::MainMenu: return QStringLiteral("#2f80ed");
 		case Configuration::GameStatus::Logo: return QStringLiteral("#f2c94c");
 		case Configuration::GameStatus::DoesntBoot: return QStringLiteral("#e55353");
-		case Configuration::GameStatus::Unknown: return QStringLiteral("#8a8a8a");
+		case Configuration::GameStatus::Unknown: return QStringLiteral("#6b6b80");
 	}
 
-	return QStringLiteral("#8a8a8a");
+	return QStringLiteral("#6b6b80");
 }
 
 void AddStatus(QComboBox* combo, Configuration::GameStatus status) {
@@ -83,10 +83,10 @@ QString GetDisplayText(const Configuration& info) {
 	QStringList lines({info.name});
 
 	if (!info.title_id.isEmpty()) {
-		lines.append(QStringLiteral("Serial ID: %1").arg(info.title_id));
+		lines.append(QStringLiteral("ID: %1").arg(info.title_id));
 	}
 	if (!info.firmwareVer.isEmpty()) {
-		lines.append(QStringLiteral("Firmware version: %1").arg(info.firmwareVer));
+		lines.append(QStringLiteral("FW: %1").arg(info.firmwareVer));
 	}
 
 	const auto path = GetPathText(info);
@@ -94,7 +94,7 @@ QString GetDisplayText(const Configuration& info) {
 		lines.append(QStringLiteral("Path: %1").arg(path));
 	}
 	if (!info.game_comment.isEmpty()) {
-		lines.append(QStringLiteral("Comment: %1").arg(info.game_comment));
+		lines.append(QStringLiteral("Note: %1").arg(info.game_comment));
 	}
 
 	return lines.join(QLatin1Char('\n'));
@@ -114,16 +114,16 @@ void MakeTransparent(QWidget* widget) {
 
 ConfigurationItem::ConfigurationItem(std::unique_ptr<Configuration> info, QTreeWidget* parent)
     : QTreeWidgetItem(parent), m_info(std::move(info)) {
-	setSizeHint(NameColumn, QSize(0, 72));
+	setSizeHint(NameColumn, QSize(0, 80));
 
 	m_status_widget = new QWidget(parent);
 	MakeTransparent(m_status_widget);
 	auto* layout = new QHBoxLayout(m_status_widget);
 	layout->setContentsMargins(4, 0, 4, 0);
-	layout->setSpacing(6);
+	layout->setSpacing(8);
 
 	m_status_indicator = new QLabel(m_status_widget);
-	m_status_indicator->setFixedSize(QSize(12, 12));
+	m_status_indicator->setFixedSize(QSize(10, 10));
 	layout->addWidget(m_status_indicator);
 
 	m_status_combo = new NoWheelComboBox(m_status_widget);
@@ -134,13 +134,14 @@ ConfigurationItem::ConfigurationItem(std::unique_ptr<Configuration> info, QTreeW
 	AddStatus(m_status_combo, Configuration::GameStatus::Logo);
 	AddStatus(m_status_combo, Configuration::GameStatus::DoesntBoot);
 	m_status_combo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-	m_status_combo->setFixedWidth(125);
+	m_status_combo->setFixedWidth(120);
 	m_status_combo->setStyleSheet(QStringLiteral(
-	    "QComboBox { background: transparent; border: 0; color: #eef4ff; padding-left: 2px; }"
-	    "QComboBox:focus { background: rgba(255,255,255,35); border-radius: 3px; }"
-	    "QComboBox::drop-down { border: 0; }"
-	    "QComboBox QAbstractItemView { background: #181c24; color: #eef4ff; "
-	    "selection-background-color: #267bd8; }"));
+	    "QComboBox { background: transparent; border: none; color: #b0b0c8; font-size: 12px; padding-left: 2px; }"
+	    "QComboBox:focus { background: rgba(255,255,255,0.08); border-radius: 4px; }"
+	    "QComboBox::drop-down { border: none; width: 20px; }"
+	    "QComboBox QAbstractItemView { background: #1e1f26; color: #ffffff; "
+	    "border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 4px; "
+	    "selection-background-color: #004fff; outline: none; }"));
 	layout->addWidget(m_status_combo);
 	layout->addStretch(1);
 
@@ -151,10 +152,10 @@ ConfigurationItem::ConfigurationItem(std::unique_ptr<Configuration> info, QTreeW
 	m_comment_edit->setClearButtonEnabled(true);
 	m_comment_edit->setFrame(false);
 	m_comment_edit->setStyleSheet(QStringLiteral(
-	    "QLineEdit { background: transparent; border: 0; color: #eef4ff; padding-left: 2px; "
-	    "selection-background-color: #267bd8; }"
-	    "QLineEdit:focus { background: rgba(255,255,255,35); "
-	    "border: 1px solid rgba(255,255,255,90); border-radius: 3px; }"));
+	    "QLineEdit { background: transparent; border: none; color: #b0b0c8; font-size: 12px; padding-left: 2px; "
+	    "selection-background-color: #004fff; }"
+	    "QLineEdit:focus { background: rgba(255,255,255,0.06); "
+	    "border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; }"));
 	parent->setItemWidget(this, CommentsColumn, m_comment_edit);
 
 	Update();
@@ -235,8 +236,12 @@ void ConfigurationItem::SetCompatibilityEditable(bool editable) {
 void ConfigurationItem::UpdateIcon() {
 	const QString icon_file = QDir(m_info->basedir).filePath(QStringLiteral("sce_sys/icon0.png"));
 	if (QFileInfo::exists(icon_file)) {
-		setIcon(NameColumn, QIcon(icon_file));
-		return;
+		QPixmap pix(icon_file);
+		if (!pix.isNull()) {
+			QPixmap rounded = pix.scaled(56, 56, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+			setIcon(NameColumn, QIcon(rounded));
+			return;
+		}
 	}
 
 	if (m_running) {
@@ -251,7 +256,7 @@ void ConfigurationItem::UpdateIcon() {
 void ConfigurationItem::UpdateStatusIndicator() {
 	m_status_indicator->setStyleSheet(
 	    QStringLiteral(
-	        "background-color: %1; border: 1px solid rgba(255, 255, 255, 90); border-radius: 6px;")
+	        "background-color: %1; border: none; border-radius: 5px;")
 	        .arg(GetStatusColor(m_info->game_status)));
 	m_status_indicator->setToolTip(GetStatusText(m_info->game_status));
 }

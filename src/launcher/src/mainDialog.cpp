@@ -116,7 +116,13 @@ void MainDialogPrivate::Setup(MainDialog* main_dialog) {
 	m_main_dialog = main_dialog;
 	m_ui->widget->SetMainDialog(main_dialog);
 
-	main_dialog->setWindowFlags(Qt::Dialog /*| Qt::MSWindowsFixedSizeDialogHint*/);
+	main_dialog->setWindowFlags(Qt::Window | Qt::WindowTitleHint | Qt::WindowCloseButtonHint |
+	                            Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint);
+
+	m_ui->backgroundContainer->setStyleSheet(QStringLiteral(
+	    "QWidget#backgroundContainer {"
+	    "  background-color: #14151a;"
+	    "}"));
 
 	connect(main_dialog, &MainDialog::Start, this, &MainDialogPrivate::FindInterpreter,
 	        Qt::QueuedConnection);
@@ -136,10 +142,6 @@ void MainDialogPrivate::Setup(MainDialog* main_dialog) {
 		        Update();
 	        });
 
-	// connect(main_dialog, &MainDialog::Quit, [=]() { m_process.Detach(); });
-
-	m_ui->label_settings_file->setText(tr("Settings file: ") + m_ui->widget->GetSettingsFile());
-
 	m_main_dialog->restoreGeometry(g_last_geometry);
 
 	Update();
@@ -157,8 +159,6 @@ void MainDialogPrivate::FindInterpreter() {
 	bool found = QFile::exists(m_interpreter);
 
 	if (found) {
-		m_ui->label_Interpreter->setText(tr("Emulator: ") + m_interpreter);
-
 		QProcess test;
 		test.setProgram(m_interpreter);
 		test.start();
@@ -168,8 +168,7 @@ void MainDialogPrivate::FindInterpreter() {
 		auto lines  = output.split(QRegularExpression("[\r\n]"), Qt::SkipEmptyParts);
 
 		if (lines.count() >= 2) {
-			m_ui->label_Version->setText(
-			    tr("Version: ") + (lines.at(0).startsWith("exe_name") ? lines.at(1) : lines.at(0)));
+			/* version info available */
 		} else {
 			found = false;
 		}
@@ -185,8 +184,6 @@ void MainDialogPrivate::FindInterpreter() {
 		QApplication::quit();
 		return;
 	}
-
-	m_ui->label_settings_file->setText(tr("Settings file: ") + m_ui->widget->GetSettingsFile());
 
 	Update();
 }

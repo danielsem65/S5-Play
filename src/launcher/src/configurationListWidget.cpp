@@ -132,41 +132,72 @@ static void ApplyGameListStyle(Ui::ConfigurationListWidget* ui) {
 	ui->cfgs_list->setAlternatingRowColors(false);
 	ui->cfgs_list->setAllColumnsShowFocus(true);
 	ui->cfgs_list->setIndentation(0);
-	ui->cfgs_list->setMouseTracking(false);
+	ui->cfgs_list->setMouseTracking(true);
 	ui->cfgs_list->setSelectionBehavior(QAbstractItemView::SelectRows);
 	ui->cfgs_list->setSelectionMode(QAbstractItemView::SingleSelection);
-	ui->cfgs_list->setTextElideMode(Qt::ElideMiddle);
-	ui->cfgs_list->header()->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-	ui->cfgs_list->header()->setHighlightSections(false);
-	ui->cfgs_list->header()->setStretchLastSection(true);
+	ui->cfgs_list->setTextElideMode(Qt::ElideRight);
 
 	ui->cfgs_list->setStyleSheet(QStringLiteral(
-	    "QTreeWidget { background: transparent; border: 1px solid rgba(255,255,255,42); "
-	    "color: #eef4ff; outline: 0; }"
-	    "QTreeWidget::item { background: rgba(8,10,16,92); "
-	    "border-bottom: 1px solid rgba(255,255,255,24); padding: 4px; }"
-	    "QTreeWidget::item:selected { background: rgba(32,118,210,150); color: #ffffff; }"
-	    "QHeaderView::section { background: rgba(22,25,31,235); color: #dce6f6; border: 0; "
-	    "border-right: 1px solid rgba(255,255,255,35); border-bottom: 1px solid "
-	    "rgba(255,255,255,45); "
-	    "padding: 5px 6px; }"
-	    "QScrollBar:vertical { background: rgba(12,14,18,150); width: 14px; margin: 0; }"
-	    "QScrollBar::handle:vertical { background: rgba(220,230,245,120); min-height: 36px; }"
-	    "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"));
+	    "QTreeWidget {"
+	    "  background: transparent;"
+	    "  border: none;"
+	    "  color: #ffffff;"
+	    "  outline: none;"
+	    "  font-size: 13px;"
+	    "}"
+	    "QTreeWidget::item {"
+	    "  background: transparent;"
+	    "  border-bottom: 1px solid rgba(255,255,255,0.04);"
+	    "  padding: 4px 12px;"
+	    "  min-height: 72px;"
+	    "}"
+	    "QTreeWidget::item:selected {"
+	    "  background: rgba(0, 79, 255, 0.15);"
+	    "  color: #ffffff;"
+	    "}"
+	    "QTreeWidget::item:hover {"
+	    "  background: rgba(255,255,255,0.04);"
+	    "}"
+	    "QTreeWidget::item:selected:hover {"
+	    "  background: rgba(0, 79, 255, 0.2);"
+	    "}"));
 
 	ui->search_line_edit->setStyleSheet(QStringLiteral(
-	    "QLineEdit { background: rgba(12,14,18,210); border: 1px solid rgba(255,255,255,42); "
-	    "border-radius: 4px; color: #eef4ff; padding: 5px 8px; selection-background-color: "
-	    "#267bd8; }"
-	    "QLineEdit:focus { border-color: rgba(80,160,255,180); }"));
-	ui->global_settings_button->setStyleSheet(QStringLiteral(
-	    "QToolButton { background: rgba(255,255,255,18); border: 1px solid transparent; "
-	    "border-radius: 5px; padding: 3px; }"
-	    "QToolButton:hover { background: rgba(255,255,255,45); border-color: rgba(255,255,255,70); "
+	    "QLineEdit {"
+	    "  background: rgba(255,255,255,0.08);"
+	    "  border: 1px solid rgba(255,255,255,0.1);"
+	    "  border-radius: 18px;"
+	    "  color: #ffffff;"
+	    "  padding: 6px 16px;"
+	    "  font-size: 13px;"
+	    "  selection-background-color: #004fff;"
 	    "}"
-	    "QToolButton:disabled { background: transparent; }"));
-	ui->edit_button->setStyleSheet(ui->global_settings_button->styleSheet());
-	ui->delete_button->setStyleSheet(ui->global_settings_button->styleSheet());
+	    "QLineEdit:focus {"
+	    "  border-color: #004fff;"
+	    "  background: rgba(255,255,255,0.12);"
+	    "}"));
+
+	QString btnStyle = QStringLiteral(
+	    "QToolButton {"
+	    "  background: rgba(255,255,255,0.06);"
+	    "  border: 1px solid transparent;"
+	    "  border-radius: 8px;"
+	    "  padding: 6px;"
+	    "}"
+	    "QToolButton:hover {"
+	    "  background: rgba(255,255,255,0.12);"
+	    "  border-color: rgba(255,255,255,0.15);"
+	    "}"
+	    "QToolButton:pressed {"
+	    "  background: rgba(255,255,255,0.04);"
+	    "}"
+	    "QToolButton:disabled {"
+	    "  background: transparent;"
+	    "  opacity: 0.3;"
+	    "}");
+	ui->global_settings_button->setStyleSheet(btnStyle);
+	ui->edit_button->setStyleSheet(btnStyle);
+	ui->delete_button->setStyleSheet(btnStyle);
 }
 
 static void AddSaveDataDir(QStringList* dirs, QSet<QString>* seen, const QString& root,
@@ -225,7 +256,7 @@ ConfigurationListWidget::ConfigurationListWidget(QWidget* parent)
 	ApplyGameListStyle(m_ui);
 
 	m_ui->global_settings_button->setIcon(style()->standardIcon(QStyle::SP_FileDialogDetailedView));
-	m_ui->global_settings_button->setToolTip(tr("Edit global settings and game folders"));
+	m_ui->global_settings_button->setToolTip(tr("Settings"));
 	m_ui->edit_button->setIcon(style()->standardIcon(QStyle::SP_FileIcon));
 	m_ui->delete_button->setIcon(style()->standardIcon(QStyle::SP_DialogDiscardButton));
 
@@ -233,16 +264,16 @@ ConfigurationListWidget::ConfigurationListWidget(QWidget* parent)
 	m_ui->edit_button->setEnabled(false);
 
 	m_ui->cfgs_list->setContextMenuPolicy(Qt::CustomContextMenu);
-	m_ui->cfgs_list->setIconSize(QSize(48, 48));
+	m_ui->cfgs_list->setIconSize(QSize(56, 56));
 	m_ui->cfgs_list->setRootIsDecorated(false);
 	m_ui->cfgs_list->setUniformRowHeights(true);
 	m_ui->cfgs_list->setSortingEnabled(true);
-	m_ui->cfgs_list->setColumnWidth(GAME_NAME_COLUMN, 320);
-	m_ui->cfgs_list->setColumnWidth(GAME_SERIAL_COLUMN, 110);
-	m_ui->cfgs_list->setColumnWidth(GAME_FIRMWARE_VERSION_COLUMN, 150);
-	m_ui->cfgs_list->setColumnWidth(GAME_PATH_COLUMN, 320);
-	m_ui->cfgs_list->setColumnWidth(GAME_STATUS_COLUMN, 150);
-	m_ui->cfgs_list->setColumnWidth(GAME_COMMENT_COLUMN, 240);
+	m_ui->cfgs_list->setColumnWidth(GAME_NAME_COLUMN, 400);
+	m_ui->cfgs_list->setColumnWidth(GAME_SERIAL_COLUMN, 140);
+	m_ui->cfgs_list->setColumnWidth(GAME_FIRMWARE_VERSION_COLUMN, 120);
+	m_ui->cfgs_list->setColumnWidth(GAME_PATH_COLUMN, 200);
+	m_ui->cfgs_list->setColumnWidth(GAME_STATUS_COLUMN, 140);
+	m_ui->cfgs_list->setColumnWidth(GAME_COMMENT_COLUMN, 160);
 
 	connect(m_ui->global_settings_button, &QToolButton::clicked, this,
 	        &ConfigurationListWidget::edit_global_settings);

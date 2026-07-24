@@ -40,11 +40,16 @@ protected:
 	void paintEvent(QPaintEvent* event) override {
 		{
 			QPainter painter(viewport());
+			painter.setRenderHint(QPainter::SmoothPixmapTransform);
 			if (m_scaled.isNull()) {
-				painter.fillRect(event->rect(), palette().brush(QPalette::Base));
+				painter.fillRect(event->rect(), QColor(20, 21, 26));
 			} else {
 				painter.drawPixmap(m_scaled_pos, m_scaled);
-				painter.fillRect(event->rect(), QColor(0, 0, 0, 115));
+				QLinearGradient gradient(event->rect().topLeft(), event->rect().bottomRight());
+				gradient.setColorAt(0.0, QColor(0, 0, 0, 160));
+				gradient.setColorAt(0.5, QColor(0, 0, 0, 100));
+				gradient.setColorAt(1.0, QColor(20, 21, 26, 220));
+				painter.fillRect(event->rect(), gradient);
 			}
 		}
 
