@@ -11,6 +11,8 @@
 #include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPainter>
+#include <QPainterPath>
 #include <QSize>
 #include <QStringList>
 #include <QStyle>
@@ -238,7 +240,19 @@ void ConfigurationItem::UpdateIcon() {
 	if (QFileInfo::exists(icon_file)) {
 		QPixmap pix(icon_file);
 		if (!pix.isNull()) {
-			QPixmap rounded = pix.scaled(56, 56, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+			QPixmap scaled = pix.scaled(56, 56, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+			QPixmap rounded(scaled.size());
+			rounded.fill(Qt::transparent);
+			QPainter p(&rounded);
+			p.setRenderHint(QPainter::Antialiasing);
+			QPainterPath path;
+			path.addRoundedRect(QRectF(0, 0, 56, 56), 12, 12);
+			p.setClipPath(path);
+			p.drawPixmap(0, 0, scaled);
+			p.setPen(QPen(QColor(255, 255, 255, 20), 1));
+			p.setBrush(Qt::NoBrush);
+			p.drawRoundedRect(QRectF(0.5, 0.5, 55, 55), 12, 12);
+			p.end();
 			setIcon(NameColumn, QIcon(rounded));
 			return;
 		}
@@ -254,9 +268,14 @@ void ConfigurationItem::UpdateIcon() {
 }
 
 void ConfigurationItem::UpdateStatusIndicator() {
+	const auto color = GetStatusColor(m_info->game_status);
 	m_status_indicator->setStyleSheet(
 	    QStringLiteral(
-	        "background-color: %1; border: none; border-radius: 5px;")
-	        .arg(GetStatusColor(m_info->game_status)));
+	        "background-color: %1;"
+	        "border: 1px solid rgba(255,255,255,0.06);"
+	        "border-radius: 5px;"
+	        "min-width: 10px; max-width: 10px;"
+	        "min-height: 10px; max-height: 10px;")
+	        .arg(color));
 	m_status_indicator->setToolTip(GetStatusText(m_info->game_status));
 }

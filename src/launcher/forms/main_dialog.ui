@@ -89,69 +89,513 @@
          <string/>
         </property>
         <property name="styleSheet">
-         <string notr="true">QPushButton { background: transparent; border: none; border-radius: 0; font-size: 22px; font-weight: 600; color: #ffffff; }
-QPushButton:hover { background: rgba(0, 79, 255, 0.2); }
-QPushButton:pressed { background: rgba(0, 79, 255, 0.35); }</string>
+         <string notr="true">QPushButton {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.6);
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+QPushButton:hover {
+  background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+    stop: 0 rgba(0,79,255,0.25),
+    stop: 1 rgba(0,79,255,0.15));
+  color: #ffffff;
+}
+QPushButton:pressed {
+  background: rgba(0,79,255,0.35);
+}</string>
         </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="closeButton">
-        <property name="minimumSize">
-         <size>
-          <width>46</width>
-          <height>44</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>46</width>
-          <height>44</height>
-         </size>
-        </property>
-        <property name="text">
-         <string/>
-        </property>
-        <property name="styleSheet">
-         <string notr="true">QPushButton { background: transparent; border: none; border-radius: 0; font-size: 20px; font-weight: 400; color: #ffffff; }
-QPushButton:hover { background: rgba(255, 0, 0, 0.3); }
-QPushButton:pressed { background: rgba(255, 0, 0, 0.5); }</string>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="closeButton">
+         <property name="minimumSize">
+          <size>
+           <width>46</width>
+           <height>44</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>46</width>
+           <height>44</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">QPushButton {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font-size: 20px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.6);
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+QPushButton:hover {
+  background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+    stop: 0 rgba(255,0,0,0.4),
+    stop: 1 rgba(200,0,0,0.25));
+  color: #ffffff;
+}
+QPushButton:pressed {
+  background: rgba(255,0,0,0.55);
+}</string>
         </property>
        </widget>
       </item>
      </layout>
     </widget>
    </item>
-   <item>
-    <widget class="QWidget" name="backgroundContainer" native="true">
-     <layout class="QVBoxLayout" name="backgroundLayout">
-      <property name="spacing">0</property>
-      <property name="leftMargin">0</property>
-      <property name="topMargin">0</property>
-      <property name="rightMargin">0</property>
-      <property name="bottomMargin">0</property>
-      <item>
-       <widget class="ConfigurationListWidget" name="widget" native="true">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-  </layout>
- </widget>
- <customwidgets>
+    <item>
+     <widget class="QStackedWidget" name="mainStack">
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="welcomePage">
+       <layout class="QVBoxLayout" name="welcomeLayout">
+        <property name="spacing">0</property>
+        <property name="leftMargin">0</property>
+        <property name="topMargin">0</property>
+        <property name="rightMargin">0</property>
+        <property name="bottomMargin">0</property>
+        <item>
+         <spacer name="welcomeTopSpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>0</width>
+            <height>120</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="welcomeCenterLayout">
+          <property name="spacing">0</property>
+          <item>
+           <spacer name="welcomeLeftSpacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>0</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QWidget" name="welcomeCard" native="true">
+            <property name="maximumSize">
+             <size>
+              <width>580</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QWidget#welcomeCard {
+  background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+    stop: 0 rgba(30,31,38,220),
+    stop: 1 rgba(20,21,26,200));
+  border: 1px solid rgba(0,79,255,0.15);
+  border-radius: 24px;
+}</string>
+            </property>
+            <layout class="QVBoxLayout" name="welcomeCardLayout">
+             <property name="spacing">8</property>
+             <property name="leftMargin">40</property>
+             <property name="topMargin">40</property>
+             <property name="rightMargin">40</property>
+             <property name="bottomMargin">40</property>
+             <item>
+              <widget class="QLabel" name="welcomeIcon">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>48</height>
+                </size>
+               </property>
+               <property name="text">
+                <string/>
+               </property>
+               <property name="scaledContents">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="welcomeTitle">
+               <property name="text">
+                <string>Welcome to S5 Play</string>
+               </property>
+               <property name="styleSheet">
+                <string notr="true">font-size: 32px; font-weight: 800; color: #ffffff; letter-spacing: 2px; background: transparent;</string>
+               </property>
+               <property name="alignment">
+                <set>Qt::AlignCenter</set>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="welcomeSubtitle">
+               <property name="text">
+                <string>Your PS5 Emulation Journey Starts Here</string>
+               </property>
+               <property name="styleSheet">
+                <string notr="true">font-size: 15px; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; background: transparent;</string>
+               </property>
+               <property name="alignment">
+                <set>Qt::AlignCenter</set>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="welcomeSpacer1">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>0</width>
+                 <height>10</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+             <item>
+              <layout class="QHBoxLayout" name="welcomeBulletsLayout">
+               <property name="spacing">16</property>
+               <property name="leftMargin">8</property>
+               <property name="rightMargin">8</property>
+               <item>
+                <widget class="QFrame" name="welcomeBullet1">
+                 <property name="styleSheet">
+                  <string notr="true">QFrame { background: rgba(0,79,255,0.08); border: 1px solid rgba(0,79,255,0.12); border-radius: 12px; }</string>
+                 </property>
+                 <layout class="QVBoxLayout" name="bullet1Layout">
+                  <property name="spacing">4</property>
+                  <property name="leftMargin">16</property>
+                  <property name="topMargin">16</property>
+                  <property name="rightMargin">16</property>
+                  <property name="bottomMargin">16</property>
+                  <item>
+                   <widget class="QLabel" name="bullet1Title">
+                    <property name="text">
+                     <string>&amp;#x1F3AE; Play Games</string>
+                    </property>
+                    <property name="styleSheet">
+                     <string notr="true">font-size: 14px; font-weight: 700; color: #ffffff; background: transparent;</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="bullet1Desc">
+                    <property name="text">
+                     <string>Add your PS5 game folder and start playing</string>
+                    </property>
+                    <property name="styleSheet">
+                     <string notr="true">font-size: 12px; color: rgba(255,255,255,0.45); background: transparent;</string>
+                    </property>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
+                <widget class="QFrame" name="welcomeBullet2">
+                 <property name="styleSheet">
+                  <string notr="true">QFrame { background: rgba(0,79,255,0.08); border: 1px solid rgba(0,79,255,0.12); border-radius: 12px; }</string>
+                 </property>
+                 <layout class="QVBoxLayout" name="bullet2Layout">
+                  <property name="spacing">4</property>
+                  <property name="leftMargin">16</property>
+                  <property name="topMargin">16</property>
+                  <property name="rightMargin">16</property>
+                  <property name="bottomMargin">16</property>
+                  <item>
+                   <widget class="QLabel" name="bullet2Title">
+                    <property name="text">
+                     <string>&amp;#x2699; Customize</string>
+                    </property>
+                    <property name="styleSheet">
+                     <string notr="true">font-size: 14px; font-weight: 700; color: #ffffff; background: transparent;</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="bullet2Desc">
+                    <property name="text">
+                     <string>Tweak emulator settings for optimal performance</string>
+                    </property>
+                    <property name="styleSheet">
+                     <string notr="true">font-size: 12px; color: rgba(255,255,255,0.45); background: transparent;</string>
+                    </property>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
+                <widget class="QFrame" name="welcomeBullet3">
+                 <property name="styleSheet">
+                  <string notr="true">QFrame { background: rgba(0,79,255,0.08); border: 1px solid rgba(0,79,255,0.12); border-radius: 12px; }</string>
+                 </property>
+                 <layout class="QVBoxLayout" name="bullet3Layout">
+                  <property name="spacing">4</property>
+                  <property name="leftMargin">16</property>
+                  <property name="topMargin">16</property>
+                  <property name="rightMargin">16</property>
+                  <property name="bottomMargin">16</property>
+                  <item>
+                   <widget class="QLabel" name="bullet3Title">
+                    <property name="text">
+                     <string>&amp;#x1F30D; Community</string>
+                    </property>
+                    <property name="styleSheet">
+                     <string notr="true">font-size: 14px; font-weight: 700; color: #ffffff; background: transparent;</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="bullet3Desc">
+                    <property name="text">
+                     <string>Join our growing community of PS5 enthusiasts</string>
+                    </property>
+                    <property name="styleSheet">
+                     <string notr="true">font-size: 12px; color: rgba(255,255,255,0.45); background: transparent;</string>
+                    </property>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item>
+              <spacer name="welcomeSpacer2">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>0</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+             <item>
+              <layout class="QHBoxLayout" name="welcomeButtonLayout">
+               <property name="spacing">12</property>
+               <property name="alignment">
+                <set>Qt::AlignCenter</set>
+               </property>
+               <item>
+                <widget class="QPushButton" name="welcomeSettingsBtn">
+                 <property name="minimumSize">
+                  <size>
+                   <width>200</width>
+                   <height>48</height>
+                  </size>
+                 </property>
+                 <property name="text">
+                  <string>Add Game Folder</string>
+                 </property>
+                 <property name="styleSheet">
+                  <string notr="true">QPushButton {
+  background-color: #004fff;
+  border: none;
+  border-radius: 24px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+QPushButton:hover {
+  background-color: #0066ff;
+}
+QPushButton:pressed {
+  background-color: #003dcc;
+}</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="welcomeBrowseBtn">
+                 <property name="minimumSize">
+                  <size>
+                   <width>160</width>
+                   <height>48</height>
+                  </size>
+                 </property>
+                 <property name="text">
+                  <string>Learn More</string>
+                 </property>
+                 <property name="styleSheet">
+                  <string notr="true">QPushButton {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.8);
+}
+QPushButton:hover {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.2);
+  color: #ffffff;
+}
+QPushButton:pressed {
+  background: rgba(255,255,255,0.04);
+}</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item>
+              <spacer name="welcomeBottomSpacer">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>0</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+            </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <spacer name="welcomeRightSpacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>0</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <spacer name="welcomeBottomSpacer2">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>0</width>
+            <height>120</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="gamePage">
+       <layout class="QVBoxLayout" name="gamePageLayout">
+        <property name="spacing">0</property>
+        <property name="leftMargin">0</property>
+        <property name="topMargin">0</property>
+        <property name="rightMargin">0</property>
+        <property name="bottomMargin">0</property>
+        <item>
+         <widget class="ConfigurationListWidget" name="widget" native="true">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+    <item>
+     <widget class="QWidget" name="statusBar" native="true">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>44</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>16777215</width>
+        <height>44</height>
+       </size>
+      </property>
+      <layout class="QHBoxLayout" name="statusBarLayout">
+       <property name="spacing">0</property>
+       <property name="leftMargin">20</property>
+       <property name="topMargin">0</property>
+       <property name="rightMargin">20</property>
+       <property name="bottomMargin">0</property>
+       <item>
+        <widget class="QLabel" name="statusVersion">
+         <property name="text">
+          <string>S5 PLAY v1.0</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="statusCenter">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="statusRight">
+         <property name="text">
+          <string>PS5 Emulator &amp;#183; Made with &amp;#10084;</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignRight|Qt::AlignVCenter</set>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <customwidgets>
   <customwidget>
    <class>ConfigurationListWidget</class>
    <extends>QWidget</extends>
