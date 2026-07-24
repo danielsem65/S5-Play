@@ -71,12 +71,17 @@ jobs:
         shell: cmd
         run: ninja -C build
 
+      - name: Stage artifacts
+        shell: pwsh
+        run: |
+          mkdir staging
+          Copy-Item build/launcher/* staging/ -Recurse
+          Copy-Item build/kyty_emulator.exe staging/
+          Copy-Item build/libwinpthread-1.dll staging/
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: s5play-windows
-          path: |
-            build/kyty_emulator.exe
-            build/launcher/launcher.exe
-            build/*.dll
+          path: staging/
           if-no-files-found: error
