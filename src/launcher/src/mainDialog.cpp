@@ -135,8 +135,8 @@ void MainDialogPrivate::Setup(MainDialog* main_dialog) {
 	    "background: transparent;"
 	    "padding-left: 4px;"));
 
-	m_ui->minimizeButton->setText(QStringLiteral("\u2014"));
-	m_ui->closeButton->setText(QStringLiteral("\u2715"));
+	m_ui->minimizeButton->setText(QStringLiteral("\u2012"));
+	m_ui->closeButton->setText(QStringLiteral("\u00D7"));
 
 	m_ui->statusBar->setStyleSheet(QStringLiteral(
 	    "QWidget#statusBar {"

@@ -95,8 +95,8 @@
   border-radius: 0;
   font-size: 22px;
   font-weight: 600;
-  color: rgba(255,255,255,0.6);
-  font-family: "Segoe UI", Arial, sans-serif;
+  color: rgba(255,255,255,0.7);
+  font-family: "Segoe UI Symbol", "Segoe UI", Arial, sans-serif;
 }
 QPushButton:hover {
   background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -134,8 +134,8 @@ QPushButton:pressed {
   border-radius: 0;
   font-size: 20px;
   font-weight: 400;
-  color: rgba(255,255,255,0.6);
-  font-family: "Segoe UI", Arial, sans-serif;
+  color: rgba(255,255,255,0.7);
+  font-family: "Segoe UI Symbol", "Segoe UI", Arial, sans-serif;
 }
 QPushButton:hover {
   background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -290,7 +290,7 @@ QPushButton:pressed {
                   <item>
                    <widget class="QLabel" name="bullet1Title">
                     <property name="text">
-                     <string>&amp;#x1F3AE; Play Games</string>
+                     <string>Play Games</string>
                     </property>
                     <property name="styleSheet">
                      <string notr="true">font-size: 14px; font-weight: 700; color: #ffffff; background: transparent;</string>
@@ -327,7 +327,7 @@ QPushButton:pressed {
                   <item>
                    <widget class="QLabel" name="bullet2Title">
                     <property name="text">
-                     <string>&amp;#x2699; Customize</string>
+                     <string>Customize</string>
                     </property>
                     <property name="styleSheet">
                      <string notr="true">font-size: 14px; font-weight: 700; color: #ffffff; background: transparent;</string>
@@ -364,7 +364,7 @@ QPushButton:pressed {
                   <item>
                    <widget class="QLabel" name="bullet3Title">
                     <property name="text">
-                     <string>&amp;#x1F30D; Community</string>
+                     <string>Community</string>
                     </property>
                     <property name="styleSheet">
                      <string notr="true">font-size: 14px; font-weight: 700; color: #ffffff; background: transparent;</string>
@@ -583,7 +583,7 @@ QPushButton:pressed {
        <item>
         <widget class="QLabel" name="statusRight">
          <property name="text">
-          <string>PS5 Emulator &amp;#183; Made with &amp;#10084;</string>
+          <string>PS5 Emulator - Made by SemDev Studio</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignRight|Qt::AlignVCenter</set>
