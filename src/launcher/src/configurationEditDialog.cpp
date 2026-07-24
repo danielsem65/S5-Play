@@ -80,8 +80,6 @@ ConfigurationEditDialog::ConfigurationEditDialog(Configuration& info, QWidget* p
 		        m_ui->lineEdit_printf_file->setEnabled(log == Configuration::LogDirection::File);
 	        });
 
-	layout()->setSizeConstraint(QLayout::SetFixedSize);
-
 	restoreGeometry(g_last_geometry);
 
 	Init(info);
@@ -171,7 +169,13 @@ void ConfigurationEditDialog::InitGameDirectories() {
 	button_layout->addStretch(1);
 	group_layout->addLayout(button_layout);
 
-	m_ui->gridLayout->addWidget(m_game_dirs_group, 1, 0, 1, 1);
+	auto* content = m_ui->scrollAreaContent;
+	if (content != nullptr) {
+		auto* scroll_layout = content->layout();
+		if (scroll_layout != nullptr) {
+			scroll_layout->addWidget(m_game_dirs_group);
+		}
+	}
 	m_game_dirs_group->setVisible(false);
 
 	connect(add_button, &QToolButton::clicked, this, &ConfigurationEditDialog::add_game_directory);

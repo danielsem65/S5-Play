@@ -116,13 +116,13 @@ void MainDialogPrivate::Setup(MainDialog* main_dialog) {
 	m_main_dialog = main_dialog;
 	m_ui->widget->SetMainDialog(main_dialog);
 
-	main_dialog->setWindowFlags(Qt::Window | Qt::WindowTitleHint | Qt::WindowCloseButtonHint |
-	                            Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint);
+	main_dialog->setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
 
-	m_ui->backgroundContainer->setStyleSheet(QStringLiteral(
-	    "QWidget#backgroundContainer {"
-	    "  background-color: #14151a;"
-	    "}"));
+	m_ui->titleBar->setStyleSheet(QStringLiteral(
+	    "QWidget#titleBar { background-color: #0e0f13; border-bottom: 1px solid rgba(255,255,255,0.06); }"));
+
+	m_ui->minimizeButton->setText(QStringLiteral("\u2014"));
+	m_ui->closeButton->setText(QStringLiteral("\u2715"));
 
 	connect(main_dialog, &MainDialog::Start, this, &MainDialogPrivate::FindInterpreter,
 	        Qt::QueuedConnection);
@@ -366,6 +366,39 @@ void MainDialogPrivate::Update() {
 	}
 
 	m_ui->widget->SetRunEnabled(run_enabled);
+}
+
+void MainDialog::mousePressEvent(QMouseEvent* event) {
+	if (event->button() == Qt::LeftButton) {
+		QWidget* title = findChild<QWidget*>(QStringLiteral("titleBar"));
+		if (title != nullptr && title->geometry().contains(event->pos())) {
+			m_dragging  = true;
+			m_drag_start = event->globalPosition().toPoint();
+			event->accept();
+			return;
+		}
+	}
+	QDialog::mousePressEvent(event);
+}
+
+void MainDialog::mouseMoveEvent(QMouseEvent* event) {
+	if (m_dragging) {
+		QPoint delta = event->globalPosition().toPoint() - m_drag_start;
+		move(pos() + delta);
+		m_drag_start = event->globalPosition().toPoint();
+		event->accept();
+		return;
+	}
+	QDialog::mouseMoveEvent(event);
+}
+
+void MainDialog::mouseReleaseEvent(QMouseEvent* event) {
+	if (event->button() == Qt::LeftButton && m_dragging) {
+		m_dragging = false;
+		event->accept();
+		return;
+	}
+	QDialog::mouseReleaseEvent(event);
 }
 
 #include "mainDialog.moc"

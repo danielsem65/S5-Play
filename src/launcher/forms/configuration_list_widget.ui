@@ -43,16 +43,6 @@
       <property name="rightMargin">24</property>
       <property name="bottomMargin">0</property>
       <item>
-       <widget class="QLabel" name="brandLabel">
-        <property name="text">
-         <string>S5 PLAY</string>
-        </property>
-        <property name="styleSheet">
-         <string notr="true">font-size: 20px; font-weight: 800; letter-spacing: 4px; color: #ffffff; background: transparent;</string>
-        </property>
-       </widget>
-      </item>
-      <item>
        <spacer name="headerSpacer">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>

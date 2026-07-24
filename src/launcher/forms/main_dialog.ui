@@ -29,6 +29,100 @@
    <property name="rightMargin">0</property>
    <property name="bottomMargin">0</property>
    <item>
+    <widget class="QWidget" name="titleBar" native="true">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>44</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>44</height>
+      </size>
+     </property>
+     <layout class="QHBoxLayout" name="titleBarLayout">
+      <property name="spacing">0</property>
+      <property name="leftMargin">16</property>
+      <property name="topMargin">0</property>
+      <property name="rightMargin">0</property>
+      <property name="bottomMargin">0</property>
+      <item>
+       <widget class="QLabel" name="brandLabel">
+        <property name="text">
+         <string>S5 PLAY</string>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">font-size: 16px; font-weight: 800; letter-spacing: 3px; color: #ffffff; background: transparent;</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="titleBarSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QPushButton" name="minimizeButton">
+        <property name="minimumSize">
+         <size>
+          <width>46</width>
+          <height>44</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>46</width>
+          <height>44</height>
+         </size>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">QPushButton { background: transparent; border: none; border-radius: 0; font-size: 22px; font-weight: 600; color: #ffffff; }
+QPushButton:hover { background: rgba(0, 79, 255, 0.2); }
+QPushButton:pressed { background: rgba(0, 79, 255, 0.35); }</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="closeButton">
+        <property name="minimumSize">
+         <size>
+          <width>46</width>
+          <height>44</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>46</width>
+          <height>44</height>
+         </size>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">QPushButton { background: transparent; border: none; border-radius: 0; font-size: 20px; font-weight: 400; color: #ffffff; }
+QPushButton:hover { background: rgba(255, 0, 0, 0.3); }
+QPushButton:pressed { background: rgba(255, 0, 0, 0.5); }</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="QWidget" name="backgroundContainer" native="true">
      <layout class="QVBoxLayout" name="backgroundLayout">
       <property name="spacing">0</property>
@@ -66,5 +160,38 @@
   </customwidget>
  </customwidgets>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>closeButton</sender>
+   <signal>clicked()</signal>
+   <receiver>MainDialog</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1074</x>
+     <y>22</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>550</x>
+     <y>22</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>minimizeButton</sender>
+   <signal>clicked()</signal>
+   <receiver>MainDialog</receiver>
+   <slot>showMinimized()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1028</x>
+     <y>22</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>550</x>
+     <y>22</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

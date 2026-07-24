@@ -6,9 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>560</width>
-    <height>420</height>
+    <width>520</width>
+    <height>480</height>
    </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>400</width>
+    <height>360</height>
+   </size>
   </property>
   <property name="windowTitle">
    <string>Settings</string>
@@ -16,306 +22,437 @@
   <property name="locale">
    <locale language="English" country="UnitedStates"/>
   </property>
-  <layout class="QGridLayout" name="gridLayout">
-   <item row="0" column="0">
-    <widget class="QFrame" name="configuaration_groupbox">
+  <layout class="QVBoxLayout" name="rootLayout">
+   <property name="spacing">0</property>
+   <property name="leftMargin">0</property>
+   <property name="topMargin">0</property>
+   <property name="rightMargin">0</property>
+   <property name="bottomMargin">0</property>
+   <item>
+    <widget class="QScrollArea" name="scrollArea">
      <property name="frameShape">
-      <enum>QFrame::StyledPanel</enum>
+      <enum>QFrame::NoFrame</enum>
      </property>
-     <layout class="QFormLayout" name="formLayout_6">
-      <property name="fieldGrowthPolicy">
-       <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+     <property name="widgetResizable">
+      <bool>true</bool>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <widget class="QWidget" name="scrollAreaContent">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>520</width>
+        <height>420</height>
+       </rect>
       </property>
-      <item row="0" column="0" colspan="2">
-       <widget class="QFrame" name="frame_4">
-        <property name="frameShape">
-         <enum>QFrame::StyledPanel</enum>
+      <layout class="QVBoxLayout" name="scrollLayout">
+       <property name="spacing">16</property>
+       <property name="leftMargin">20</property>
+       <property name="topMargin">20</property>
+       <property name="rightMargin">20</property>
+       <property name="bottomMargin">20</property>
+       <item>
+        <widget class="QLabel" name="sectionLabel">
+         <property name="text">
+          <string>EMULATOR SETTINGS</string>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #6b6b80; background: transparent;</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QFrame" name="settingsCard">
+         <property name="styleSheet">
+          <string notr="true">QFrame#settingsCard { background-color: #1a1b22; border-radius: 12px; }</string>
+         </property>
+         <layout class="QVBoxLayout" name="cardLayout">
+          <property name="spacing">10</property>
+          <property name="leftMargin">16</property>
+          <property name="topMargin">16</property>
+          <property name="rightMargin">16</property>
+          <property name="bottomMargin">16</property>
+          <item>
+           <widget class="QCheckBox" name="checkBox_vulkan_validation">
+            <property name="toolTip">
+             <string>Enable Vulkan validation layers</string>
+            </property>
+            <property name="text">
+             <string>Vulkan validation</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkBox_shader_validation">
+            <property name="toolTip">
+             <string>Validate SPIR-V binary</string>
+            </property>
+            <property name="text">
+             <string>Shader validation</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkBox_renderdoc_capture">
+            <property name="toolTip">
+             <string>Enable RenderDoc capture</string>
+            </property>
+            <property name="text">
+             <string>RenderDoc capture</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkBox_cmd_dump">
+            <property name="toolTip">
+             <string>Dump command buffers</string>
+            </property>
+            <property name="text">
+             <string>Command buffer dump</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkBox_ngg_rectlist_draw">
+            <property name="toolTip">
+             <string>Use the NGG 4-vertex path for rect-list DrawIndexAuto</string>
+            </property>
+            <property name="text">
+             <string>NGG rect-list draw</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QFrame" name="graphicsCard">
+         <property name="styleSheet">
+          <string notr="true">QFrame#graphicsCard { background-color: #1a1b22; border-radius: 12px; }</string>
+         </property>
+         <layout class="QFormLayout" name="graphicsForm">
+          <property name="spacing">10</property>
+          <property name="leftMargin">16</property>
+          <property name="topMargin">16</property>
+          <property name="rightMargin">16</property>
+          <property name="bottomMargin">16</property>
+          <property name="fieldGrowthPolicy">
+           <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_16">
+            <property name="styleSheet">
+             <string notr="true">background: transparent; color: #b0b0c8; font-size: 12px;</string>
+            </property>
+            <property name="text">
+             <string>Screen resolution</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QComboBox" name="comboBox_screen_resolution">
+            <property name="toolTip">
+             <string>Window resolution</string>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>140</width>
+              <height>0</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="label_vblank_frequency">
+            <property name="styleSheet">
+             <string notr="true">background: transparent; color: #b0b0c8; font-size: 12px;</string>
+            </property>
+            <property name="text">
+             <string>Vblank frequency</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QSpinBox" name="spinBox_vblank_frequency">
+            <property name="toolTip">
+             <string>Virtual display refresh rate</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QFrame" name="shadersCard">
+         <property name="styleSheet">
+          <string notr="true">QFrame#shadersCard { background-color: #1a1b22; border-radius: 12px; }</string>
+         </property>
+         <layout class="QFormLayout" name="shadersForm">
+          <property name="spacing">10</property>
+          <property name="leftMargin">16</property>
+          <property name="topMargin">16</property>
+          <property name="rightMargin">16</property>
+          <property name="bottomMargin">16</property>
+          <property name="fieldGrowthPolicy">
+           <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_20">
+            <property name="styleSheet">
+             <string notr="true">background: transparent; color: #b0b0c8; font-size: 12px;</string>
+            </property>
+            <property name="text">
+             <string>Shader optimization</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QComboBox" name="comboBox_shader_optimization_type">
+            <property name="toolTip">
+             <string>Optimize shaders for code size or performance</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="label_21">
+            <property name="styleSheet">
+             <string notr="true">background: transparent; color: #b0b0c8; font-size: 12px;</string>
+            </property>
+            <property name="text">
+             <string>Shader log direction</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QComboBox" name="comboBox_shader_log_direction">
+            <property name="toolTip">
+             <string>Dump shaders to file or console</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="label_22">
+            <property name="styleSheet">
+             <string notr="true">background: transparent; color: #b0b0c8; font-size: 12px;</string>
+            </property>
+            <property name="text">
+             <string>Shader log folder</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QLineEdit" name="lineEdit_shader_log_folder">
+            <property name="toolTip">
+             <string>Directory to dump shaders</string>
+            </property>
+            <property name="clearButtonEnabled">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QFrame" name="debugCard">
+         <property name="styleSheet">
+          <string notr="true">QFrame#debugCard { background-color: #1a1b22; border-radius: 12px; }</string>
+         </property>
+         <layout class="QFormLayout" name="debugForm">
+          <property name="spacing">10</property>
+          <property name="leftMargin">16</property>
+          <property name="topMargin">16</property>
+          <property name="rightMargin">16</property>
+          <property name="bottomMargin">16</property>
+          <property name="fieldGrowthPolicy">
+           <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_24">
+            <property name="styleSheet">
+             <string notr="true">background: transparent; color: #b0b0c8; font-size: 12px;</string>
+            </property>
+            <property name="text">
+             <string>Cmd buffer dump folder</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="lineEdit_cmd_dump_folder">
+            <property name="toolTip">
+             <string>Directory to dump command buffers</string>
+            </property>
+            <property name="clearButtonEnabled">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="label_25">
+            <property name="styleSheet">
+             <string notr="true">background: transparent; color: #b0b0c8; font-size: 12px;</string>
+            </property>
+            <property name="text">
+             <string>Printf direction</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QComboBox" name="comboBox_printf_direction">
+            <property name="toolTip">
+             <string>Print logs to file or console</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="label_26">
+            <property name="styleSheet">
+             <string notr="true">background: transparent; color: #b0b0c8; font-size: 12px;</string>
+            </property>
+            <property name="text">
+             <string>Printf output file</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QLineEdit" name="lineEdit_printf_file">
+            <property name="toolTip">
+             <string>File to dump logs</string>
+            </property>
+            <property name="clearButtonEnabled">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="label_27">
+            <property name="styleSheet">
+             <string notr="true">background: transparent; color: #b0b0c8; font-size: 12px;</string>
+            </property>
+            <property name="text">
+             <string>Profiler direction</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QComboBox" name="comboBox_profiler_direction">
+            <property name="toolTip">
+             <string>Enable or disable profiler</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="buttonBar" native="true">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>60</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>60</height>
+      </size>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QWidget#buttonBar { background-color: #0e0f13; border-top: 1px solid rgba(255,255,255,0.06); }</string>
+     </property>
+     <layout class="QHBoxLayout" name="buttonBarLayout">
+      <property name="spacing">10</property>
+      <property name="leftMargin">20</property>
+      <property name="topMargin">0</property>
+      <property name="rightMargin">20</property>
+      <property name="bottomMargin">0</property>
+      <item>
+       <widget class="QPushButton" name="clear_button">
+        <property name="minimumSize">
+         <size>
+          <width>90</width>
+          <height>36</height>
+         </size>
         </property>
-        <layout class="QGridLayout" name="gridLayout_5">
-         <item row="0" column="0">
-          <widget class="QCheckBox" name="checkBox_vulkan_validation">
-           <property name="toolTip">
-            <string>Enable Vulkan validation layers</string>
-           </property>
-           <property name="text">
-            <string>Vulkan validation</string>
-           </property>
-           <property name="checked">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="1">
-          <widget class="QCheckBox" name="checkBox_shader_validation">
-           <property name="toolTip">
-            <string>Validate SPIR-V binary</string>
-           </property>
-           <property name="text">
-            <string>Shader validation</string>
-           </property>
-           <property name="checked">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="1">
-          <widget class="QCheckBox" name="checkBox_cmd_dump">
-           <property name="toolTip">
-            <string>Dump command buffers</string>
-           </property>
-           <property name="text">
-            <string>Command buffer dump</string>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="0">
-          <widget class="QCheckBox" name="checkBox_renderdoc_capture">
-           <property name="toolTip">
-            <string>Enable RenderDoc capture</string>
-           </property>
-           <property name="text">
-            <string>RenderDoc capture</string>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="0" colspan="2">
-          <widget class="QCheckBox" name="checkBox_ngg_rectlist_draw">
-           <property name="toolTip">
-            <string>Use the NGG 4-vertex path for rect-list DrawIndexAuto primitive 7</string>
-           </property>
-           <property name="text">
-            <string>Use NGG rect-list draw</string>
-           </property>
-           <property name="checked">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_16">
         <property name="text">
-         <string>Screen resolution:</string>
+         <string>Reset</string>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">QPushButton { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; color: #ffffff; font-size: 12px; font-weight: 600; padding: 8px 16px; }
+QPushButton:hover { background: rgba(255,255,255,0.14); }
+QPushButton:pressed { background: rgba(255,255,255,0.05); }</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="1">
-       <widget class="QComboBox" name="comboBox_screen_resolution">
-        <property name="toolTip">
-         <string>Window resolution</string>
+      <item>
+       <spacer name="buttonSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
         </property>
-       </widget>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
       </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="label_vblank_frequency">
+      <item>
+       <widget class="QPushButton" name="cancel_button">
+        <property name="minimumSize">
+         <size>
+          <width>90</width>
+          <height>36</height>
+         </size>
+        </property>
         <property name="text">
-         <string>Vblank frequency:</string>
+         <string>Cancel</string>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">QPushButton { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; color: #ffffff; font-size: 12px; font-weight: 600; padding: 8px 16px; }
+QPushButton:hover { background: rgba(255,255,255,0.14); }
+QPushButton:pressed { background: rgba(255,255,255,0.05); }</string>
         </property>
        </widget>
       </item>
-      <item row="2" column="1">
-       <widget class="QSpinBox" name="spinBox_vblank_frequency">
-        <property name="toolTip">
-         <string>Virtual display refresh rate used for frame pacing</string>
+      <item>
+       <widget class="QPushButton" name="ok_button">
+        <property name="minimumSize">
+         <size>
+          <width>90</width>
+          <height>36</height>
+         </size>
         </property>
-        <property name="minimum">
-         <number>30</number>
-        </property>
-        <property name="maximum">
-         <number>360</number>
-        </property>
-        <property name="value">
-         <number>60</number>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
-       <widget class="QLabel" name="label_20">
         <property name="text">
-         <string>Shader optimization type:</string>
+         <string>Save</string>
         </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="QComboBox" name="comboBox_shader_optimization_type">
-        <property name="toolTip">
-         <string>Optimize shaders for code size or performance</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="0">
-       <widget class="QLabel" name="label_21">
-        <property name="text">
-         <string>Shader log direction:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="1">
-       <widget class="QComboBox" name="comboBox_shader_log_direction">
-        <property name="toolTip">
-         <string>Dump shaders to file or console window. If enabled may decrease emulator performance</string>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="0">
-       <widget class="QLabel" name="label_22">
-        <property name="text">
-         <string>Shader log folder:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="1">
-       <widget class="MandatoryLineEdit" name="lineEdit_shader_log_folder">
-        <property name="toolTip">
-         <string>Specify directory to dump shaders</string>
-        </property>
-        <property name="clearButtonEnabled">
+        <property name="default">
          <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="0">
-       <widget class="QLabel" name="label_24">
-        <property name="text">
-         <string>Command buffer dump folder:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="1">
-       <widget class="MandatoryLineEdit" name="lineEdit_cmd_dump_folder">
-        <property name="toolTip">
-         <string>Specify directory to dump command buffers</string>
-        </property>
-        <property name="clearButtonEnabled">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="0">
-       <widget class="QLabel" name="label_25">
-        <property name="text">
-         <string>Printf direction:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="1">
-       <widget class="QComboBox" name="comboBox_printf_direction">
-        <property name="toolTip">
-         <string>Print logs to file or console window. If enabled may decrease emulator performance</string>
-        </property>
-       </widget>
-      </item>
-      <item row="8" column="0">
-       <widget class="QLabel" name="label_26">
-        <property name="text">
-         <string>Printf output file:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="8" column="1">
-       <widget class="MandatoryLineEdit" name="lineEdit_printf_file">
-        <property name="toolTip">
-         <string>Specify file to dump logs</string>
-        </property>
-        <property name="clearButtonEnabled">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="9" column="0">
-       <widget class="QLabel" name="label_27">
-        <property name="text">
-         <string>Profiler direction:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="9" column="1">
-       <widget class="QComboBox" name="comboBox_profiler_direction">
-        <property name="toolTip">
-         <string>Enable or disable profiler. If enabled may decrease emulator performance</string>
         </property>
        </widget>
       </item>
      </layout>
     </widget>
    </item>
-   <item row="0" column="1">
-    <layout class="QVBoxLayout" name="verticalLayout">
-     <item>
-      <widget class="QPushButton" name="ok_button">
-       <property name="minimumSize">
-        <size>
-         <width>80</width>
-         <height>25</height>
-        </size>
-       </property>
-       <property name="text">
-        <string>Save</string>
-       </property>
-       <property name="default">
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="cancel_button">
-       <property name="minimumSize">
-        <size>
-         <width>80</width>
-         <height>25</height>
-        </size>
-       </property>
-       <property name="text">
-        <string>Cancel</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="Line" name="line">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="clear_button">
-       <property name="minimumSize">
-        <size>
-         <width>80</width>
-         <height>25</height>
-        </size>
-       </property>
-       <property name="text">
-        <string>Clear</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <spacer name="verticalSpacer">
-       <property name="orientation">
-        <enum>Qt::Vertical</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>20</width>
-         <height>40</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-    </layout>
-   </item>
   </layout>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>MandatoryLineEdit</class>
-   <extends>QLineEdit</extends>
-   <header>mandatoryLineEdit.h</header>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections>
   <connection>
@@ -325,12 +462,12 @@
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>496</x>
-     <y>65</y>
+     <x>310</x>
+     <y>455</y>
     </hint>
     <hint type="destinationlabel">
-     <x>280</x>
-     <y>180</y>
+     <x>260</x>
+     <y>240</y>
     </hint>
    </hints>
   </connection>
