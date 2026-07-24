@@ -76,7 +76,7 @@ jobs:
         with:
           name: s5play-windows
           path: |
-            build/src/kyty_emulator.exe
-            build/src/launcher/launcher.exe
-            build/src/*.dll
+            build/kyty_emulator.exe
+            build/launcher/launcher.exe
+            build/*.dll
           if-no-files-found: error
