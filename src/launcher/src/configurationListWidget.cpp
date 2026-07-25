@@ -53,12 +53,7 @@ constexpr char CONF_GAME_DIRS[]    = "game_dirs";
 constexpr char CONF_GLOBAL[]       = "GlobalConfiguration";
 constexpr char SAVE_DATA_DIR[]     = "_SaveData";
 
-constexpr int GAME_NAME_COLUMN             = 0;
-constexpr int GAME_SERIAL_COLUMN           = 1;
-constexpr int GAME_FIRMWARE_VERSION_COLUMN = 2;
-constexpr int GAME_PATH_COLUMN             = 3;
-constexpr int GAME_STATUS_COLUMN           = 4;
-constexpr int GAME_COMMENT_COLUMN          = 5;
+constexpr int GAME_NAME_COLUMN = 0;
 
 static QString NormalizeGameDirectory(const QString& dir) {
 	const auto trimmed = dir.trimmed();
@@ -136,6 +131,8 @@ static void ApplyGameListStyle(Ui::ConfigurationListWidget* ui) {
 	ui->cfgs_list->setSelectionBehavior(QAbstractItemView::SelectRows);
 	ui->cfgs_list->setSelectionMode(QAbstractItemView::SingleSelection);
 	ui->cfgs_list->setTextElideMode(Qt::ElideRight);
+	ui->cfgs_list->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+	ui->cfgs_list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
 	ui->cfgs_list->setStyleSheet(QStringLiteral(
 	    "QTreeWidget {"
@@ -147,63 +144,38 @@ static void ApplyGameListStyle(Ui::ConfigurationListWidget* ui) {
 	    "}"
 	    "QTreeWidget::item {"
 	    "  background: transparent;"
-	    "  border-bottom: 1px solid rgba(255,255,255,0.03);"
-	    "  padding: 4px 12px;"
+	    "  padding: 0px 24px 0px 24px;"
 	    "  min-height: 72px;"
+	    "  border: none;"
 	    "}"
 	    "QTreeWidget::item:selected {"
-	    "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
-	    "    stop: 0 rgba(0,79,255,0.15),"
-	    "    stop: 1 rgba(0,79,255,0.04));"
-	    "  border-left: 3px solid #004fff;"
+	    "  background: transparent;"
 	    "  color: #ffffff;"
 	    "}"
 	    "QTreeWidget::item:hover {"
-	    "  background: rgba(255,255,255,0.03);"
+	    "  background: transparent;"
 	    "}"
 	    "QTreeWidget::item:selected:hover {"
-	    "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
-	    "    stop: 0 rgba(0,79,255,0.2),"
-	    "    stop: 1 rgba(0,79,255,0.06));"
+	    "  background: transparent;"
 	    "}"));
 
 	ui->search_line_edit->setStyleSheet(QStringLiteral(
 	    "QLineEdit {"
-	    "  background: rgba(255,255,255,0.06);"
-	    "  border: 1px solid rgba(255,255,255,0.06);"
-	    "  border-radius: 18px;"
+	    "  background: rgba(255,255,255,0.04);"
+	    "  border: 1px solid rgba(255,255,255,0.04);"
+	    "  border-radius: 16px;"
 	    "  color: #ffffff;"
-	    "  padding: 6px 16px 6px 36px;"
-	    "  font-size: 13px;"
+	    "  padding: 4px 12px 4px 32px;"
+	    "  font-size: 12px;"
 	    "  selection-background-color: #004fff;"
 	    "}"
 	    "QLineEdit:focus {"
-	    "  border-color: #004fff;"
-	    "  background: rgba(0,79,255,0.06);"
+	    "  border-color: rgba(0,79,255,0.2);"
+	    "  background: rgba(0,79,255,0.04);"
 	    "}"));
 
-	QString btnStyle = QStringLiteral(
-	    "QToolButton {"
-	    "  background: rgba(255,255,255,0.04);"
-	    "  border: 1px solid transparent;"
-	    "  border-radius: 8px;"
-	    "  padding: 6px;"
-	    "}"
-	    "QToolButton:hover {"
-	    "  background: rgba(0,79,255,0.1);"
-	    "  border-color: rgba(0,79,255,0.15);"
-	    "}"
-	    "QToolButton:pressed {"
-	    "  background: rgba(0,79,255,0.18);"
-	    "}"
-	    "QToolButton:disabled {"
-	    "  background: transparent;"
-	    "  opacity: 0.3;"
-	    "}");
-	ui->global_settings_button->setStyleSheet(btnStyle);
-	ui->edit_button->setStyleSheet(btnStyle);
-	ui->delete_button->setStyleSheet(btnStyle);
 }
+
 
 static void AddSaveDataDir(QStringList* dirs, QSet<QString>* seen, const QString& root,
                            const QString& title_id) {
@@ -262,30 +234,15 @@ ConfigurationListWidget::ConfigurationListWidget(QWidget* parent)
 
 	m_ui->global_settings_button->setIcon(style()->standardIcon(QStyle::SP_FileDialogDetailedView));
 	m_ui->global_settings_button->setToolTip(tr("Settings"));
-	m_ui->edit_button->setIcon(style()->standardIcon(QStyle::SP_FileIcon));
-	m_ui->delete_button->setIcon(style()->standardIcon(QStyle::SP_DialogDiscardButton));
-
-	m_ui->delete_button->setEnabled(false);
-	m_ui->edit_button->setEnabled(false);
 
 	m_ui->cfgs_list->setContextMenuPolicy(Qt::CustomContextMenu);
-	m_ui->cfgs_list->setIconSize(QSize(56, 56));
+	m_ui->cfgs_list->setIconSize(QSize(48, 48));
 	m_ui->cfgs_list->setRootIsDecorated(false);
 	m_ui->cfgs_list->setUniformRowHeights(true);
 	m_ui->cfgs_list->setSortingEnabled(true);
-	m_ui->cfgs_list->setColumnWidth(GAME_NAME_COLUMN, 400);
-	m_ui->cfgs_list->setColumnWidth(GAME_SERIAL_COLUMN, 140);
-	m_ui->cfgs_list->setColumnWidth(GAME_FIRMWARE_VERSION_COLUMN, 120);
-	m_ui->cfgs_list->setColumnWidth(GAME_PATH_COLUMN, 200);
-	m_ui->cfgs_list->setColumnWidth(GAME_STATUS_COLUMN, 140);
-	m_ui->cfgs_list->setColumnWidth(GAME_COMMENT_COLUMN, 160);
 
 	connect(m_ui->global_settings_button, &QToolButton::clicked, this,
 	        &ConfigurationListWidget::edit_global_settings);
-	connect(m_ui->edit_button, &QToolButton::clicked, this,
-	        &ConfigurationListWidget::edit_configuration);
-	connect(m_ui->delete_button, &QToolButton::clicked, this,
-	        &ConfigurationListWidget::delete_configuartion);
 	connect(m_ui->cfgs_list, &QTreeWidget::currentItemChanged, this,
 	        &ConfigurationListWidget::list_currentItemChanged);
 	connect(m_ui->cfgs_list, &QTreeWidget::itemDoubleClicked, this,
@@ -593,8 +550,7 @@ void ConfigurationListWidget::ScanGameDirectory() {
 	m_selected_item = nullptr;
 	m_ui->cfgs_list->clear();
 	m_ui->cfgs_list->SetBackgroundImage({});
-	m_ui->edit_button->setEnabled(false);
-	m_ui->delete_button->setEnabled(false);
+	m_ui->cfgs_list->SetHeroText({}, {});
 
 	const QString eboot_name = QStringLiteral("eboot.bin");
 	QSet<QString> found_games;
@@ -833,8 +789,7 @@ void ConfigurationListWidget::filter_configurations(const QString& text) {
 		}
 
 		const bool match = !has_query ||
-		                   item->text(GAME_NAME_COLUMN).contains(query, Qt::CaseInsensitive) ||
-		                   item->text(GAME_SERIAL_COLUMN).contains(query, Qt::CaseInsensitive);
+		                   item->text(GAME_NAME_COLUMN).contains(query, Qt::CaseInsensitive);
 		item->setHidden(!match);
 
 		if (match && item == m_selected_item) {
@@ -854,17 +809,24 @@ void ConfigurationListWidget::SelectItem(QTreeWidgetItem* witem) {
 	if (item == nullptr) {
 		m_selected_item = nullptr;
 		m_ui->cfgs_list->SetBackgroundImage({});
-		m_ui->edit_button->setEnabled(false);
-		m_ui->delete_button->setEnabled(false);
+		m_ui->cfgs_list->SetHeroText({}, {});
 		emit Select();
 		return;
 	}
 
-	m_ui->delete_button->setEnabled(!item->IsRunning() && item->GetInfo().custom_settings);
-	m_ui->edit_button->setEnabled(!item->IsRunning());
-
 	m_selected_item = item;
 	m_ui->cfgs_list->SetBackgroundImage(GetPic0Path(item->GetInfo()));
+
+	QString subtitle;
+	const auto& info = item->GetInfo();
+	if (!info.title_id.isEmpty()) {
+		subtitle = info.title_id;
+	}
+	if (!info.firmwareVer.isEmpty()) {
+		if (!subtitle.isEmpty()) subtitle += QStringLiteral("  \u00B7  ");
+		subtitle += QStringLiteral("FW ") + info.firmwareVer;
+	}
+	m_ui->cfgs_list->SetHeroText(info.name, subtitle);
 
 	emit Select();
 }

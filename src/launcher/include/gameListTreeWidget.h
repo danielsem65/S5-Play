@@ -3,9 +3,12 @@
 
 #include <QBasicTimer>
 #include <QColor>
+#include <QFont>
+#include <QFontMetrics>
 #include <QLinearGradient>
 #include <QPaintEvent>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPalette>
 #include <QPixmap>
 #include <QPoint>
@@ -47,6 +50,14 @@ public:
 		viewport()->update();
 	}
 
+	void SetHeroText(const QString& title, const QString& subtitle) {
+		m_hero_title    = title;
+		m_hero_subtitle = subtitle;
+		viewport()->update();
+	}
+
+	int GetHeroHeight() const { return m_hero_height; }
+
 protected:
 	void resizeEvent(QResizeEvent* event) override {
 		QTreeWidget::resizeEvent(event);
@@ -75,36 +86,94 @@ protected:
 		painter.setRenderHint(QPainter::Antialiasing);
 		painter.setRenderHint(QPainter::SmoothPixmapTransform);
 
-		const QRect r = event->rect();
+		const QRect vr = viewport()->rect();
+		m_hero_height   = vr.height() * 55 / 100;
 
-		if (m_scaled.isNull()) {
-			QLinearGradient sky(r.topLeft(), r.bottomRight());
-			int h = m_hue;
-			sky.setColorAt(0.0, QColor::fromHsl(h % 360, 180, 12));
-			sky.setColorAt(0.3, QColor::fromHsl((h + 60) % 360, 160, 16));
-			sky.setColorAt(0.6, QColor::fromHsl((h + 120) % 360, 140, 14));
-			sky.setColorAt(1.0, QColor::fromHsl((h + 240) % 360, 200, 8));
-			painter.fillRect(r, sky);
-		} else {
+		if (!m_scaled.isNull()) {
 			painter.drawPixmap(m_scaled_pos, m_scaled);
-			QLinearGradient overlay(r.topLeft(), r.bottomRight());
-			overlay.setColorAt(0.0, QColor(0, 0, 0, 170));
-			overlay.setColorAt(0.4, QColor(0, 0, 0, 100));
-			overlay.setColorAt(1.0, QColor(20, 21, 26, 230));
-			painter.fillRect(r, overlay);
+		}
+
+		{
+			QLinearGradient sky(vr.topLeft(), vr.bottomRight());
+			if (!m_scaled.isNull()) {
+				sky.setColorAt(0.0, QColor(0, 0, 0, 40));
+				sky.setColorAt(0.45, QColor(0, 0, 0, 80));
+				sky.setColorAt(0.55, QColor(0, 0, 0, 180));
+				sky.setColorAt(1.0, QColor(0, 0, 0, 240));
+			} else {
+				int h = m_hue;
+				sky.setColorAt(0.0, QColor::fromHsl(h % 360, 200, 10));
+				sky.setColorAt(0.4, QColor::fromHsl((h + 60) % 360, 160, 13));
+				sky.setColorAt(0.7, QColor::fromHsl((h + 140) % 360, 120, 11));
+				sky.setColorAt(1.0, QColor::fromHsl((h + 240) % 360, 180, 7));
+			}
+			painter.fillRect(vr, sky);
+		}
+
+		{
+			QLinearGradient fade_out(0, m_hero_height - 80, 0, m_hero_height);
+			fade_out.setColorAt(0.0, QColor(0, 0, 0, 0));
+			fade_out.setColorAt(1.0, QColor(0, 0, 0, 200));
+			painter.fillRect(0, m_hero_height - 80, vr.width(), 80, fade_out);
+		}
+
+		QRect hero_rect(0, 0, vr.width(), m_hero_height);
+
+		if (m_scaled.isNull() && m_hero_title.isEmpty()) {
+			QFont f = painter.font();
+			f.setPointSize(20);
+			f.setWeight(QFont::ExtraLight);
+			painter.setFont(f);
+			painter.setPen(QColor(255, 255, 255, 30));
+			painter.drawText(hero_rect, Qt::AlignCenter, QStringLiteral("S5 PLAY"));
+
+			f.setPointSize(13);
+			f.setWeight(QFont::Light);
+			painter.setFont(f);
+			painter.setPen(QColor(255, 255, 255, 15));
+			painter.drawText(hero_rect.adjusted(0, 40, 0, 0), Qt::AlignCenter,
+			                 QStringLiteral("Add a game folder to get started"));
+		}
+
+		if (!m_hero_title.isEmpty()) {
+			QFont f;
+			f.setPointSize(36);
+			f.setWeight(QFont::Bold);
+			painter.setFont(f);
+			painter.setPen(QColor(255, 255, 255, 220));
+			QRect title_r = hero_rect.adjusted(48, 0, -48, 0);
+			painter.drawText(title_r, Qt::AlignLeft | Qt::AlignBottom, m_hero_title);
+
+			if (!m_hero_subtitle.isEmpty()) {
+				title_r.adjust(0, -48, 0, 0);
+				f.setPointSize(15);
+				f.setWeight(QFont::Normal);
+				painter.setFont(f);
+				painter.setPen(QColor(255, 255, 255, 120));
+				painter.drawText(title_r.adjusted(2, 0, 0, 0), Qt::AlignLeft | Qt::AlignBottom,
+				                 m_hero_subtitle);
+			}
 		}
 
 		for (const auto& p : m_particles) {
-			qreal px = p.x * r.width();
-			qreal py = p.y * r.height();
-			qreal size = p.size * 1.5;
-			int alpha = static_cast<int>(p.alpha * 255 * (0.5 + 0.5 * std::sin(m_hue * 0.02 + p.x * 10.0)));
+			if (p.y * vr.height() > m_hero_height) continue;
+			qreal px    = p.x * vr.width();
+			qreal py    = p.y * vr.height();
+			qreal size  = p.size * 1.5;
+			int   alpha = static_cast<int>(p.alpha * 255 *
+			                               (0.5 + 0.5 * std::sin(m_hue * 0.02 + p.x * 10.0)));
 			if (alpha < 20) continue;
 			QRadialGradient dot(QPointF(px, py), size);
 			dot.setColorAt(0.0, QColor(255, 255, 255, alpha));
 			dot.setColorAt(0.4, QColor(180, 200, 255, alpha / 3));
 			dot.setColorAt(1.0, QColor(255, 255, 255, 0));
 			painter.fillRect(QRectF(px - size, py - size, size * 2, size * 2), dot);
+		}
+
+		{
+			QPainterPath clip_path;
+			clip_path.addRect(0, m_hero_height, vr.width(), vr.height() - m_hero_height);
+			painter.setClipPath(clip_path);
 		}
 
 		QTreeWidget::paintEvent(event);
@@ -126,12 +195,15 @@ private:
 		qreal x, y, size, alpha;
 	};
 
-	QBasicTimer   m_anim_timer;
-	int           m_hue = 0;
-	QString       m_path;
-	QPixmap       m_source;
-	QPixmap       m_scaled;
-	QPoint        m_scaled_pos;
+	int m_hero_height = 0;
+	QString m_hero_title;
+	QString m_hero_subtitle;
+	QBasicTimer m_anim_timer;
+	int         m_hue = 0;
+	QString     m_path;
+	QPixmap     m_source;
+	QPixmap     m_scaled;
+	QPoint      m_scaled_pos;
 	QList<Particle> m_particles;
 };
 

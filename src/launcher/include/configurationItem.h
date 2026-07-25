@@ -26,22 +26,24 @@ public:
 
 	Configuration&                     GetInfo() { return *m_info; }
 	[[nodiscard]] const Configuration& GetInfo() const { return *m_info; }
-	// void                                     SetInfo(Configuration* info);
-	void               SetRunning(bool state);
-	void               SetCompatibilityEditable(bool editable);
-	[[nodiscard]] bool IsRunning() const { return m_running; }
-	QComboBox*         GetStatusCombo() { return m_status_combo; }
-	QLineEdit*         GetCommentEdit() { return m_comment_edit; }
+	void                               SetRunning(bool state);
+	void                               SetCompatibilityEditable(bool editable);
+	[[nodiscard]] bool                 IsRunning() const { return m_running; }
+	QComboBox*                         GetStatusCombo();
+	QLineEdit*                         GetCommentEdit();
 
 private:
 	void UpdateIcon();
-	void UpdateStatusIndicator();
+	void UpdateStatusDot();
 
 	std::unique_ptr<Configuration> m_info;
 	bool                           m_running          = false;
+	QWidget*                       m_card_widget      = nullptr;
+	QLabel*                        m_icon_label       = nullptr;
+	QLabel*                        m_name_label       = nullptr;
+	QLabel*                        m_subtitle_label   = nullptr;
+	QLabel*                        m_status_dot       = nullptr;
 	QComboBox*                     m_status_combo     = nullptr;
-	QLabel*                        m_status_indicator = nullptr;
-	QWidget*                       m_status_widget    = nullptr;
 	QLineEdit*                     m_comment_edit     = nullptr;
 };
 

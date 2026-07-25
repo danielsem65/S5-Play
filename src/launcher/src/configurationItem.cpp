@@ -24,12 +24,7 @@
 namespace {
 
 enum Column {
-	NameColumn,
-	SerialColumn,
-	FirmwareVersionColumn,
-	PathColumn,
-	StatusColumn,
-	CommentsColumn,
+	CardColumn,
 };
 
 class NoWheelComboBox: public QComboBox {
@@ -77,35 +72,6 @@ QIcon StandardIcon(QStyle::StandardPixmap icon) {
 	return QApplication::style()->standardIcon(icon);
 }
 
-QString GetPathText(const Configuration& info) {
-	return !info.game_path.isEmpty() ? info.game_path : info.basedir;
-}
-
-QString GetDisplayText(const Configuration& info) {
-	QStringList lines({info.name});
-
-	if (!info.title_id.isEmpty()) {
-		lines.append(QStringLiteral("ID: %1").arg(info.title_id));
-	}
-	if (!info.firmwareVer.isEmpty()) {
-		lines.append(QStringLiteral("FW: %1").arg(info.firmwareVer));
-	}
-
-	const auto path = GetPathText(info);
-	if (!path.isEmpty()) {
-		lines.append(QStringLiteral("Path: %1").arg(path));
-	}
-	if (!info.game_comment.isEmpty()) {
-		lines.append(QStringLiteral("Note: %1").arg(info.game_comment));
-	}
-
-	return lines.join(QLatin1Char('\n'));
-}
-
-QString GetSortText(const Configuration& info) {
-	return QStringLiteral("%1\n%2").arg(info.name.toCaseFolded(), info.game_path.toCaseFolded());
-}
-
 void MakeTransparent(QWidget* widget) {
 	widget->setAutoFillBackground(false);
 	widget->setAttribute(Qt::WA_NoSystemBackground);
@@ -116,19 +82,39 @@ void MakeTransparent(QWidget* widget) {
 
 ConfigurationItem::ConfigurationItem(std::unique_ptr<Configuration> info, QTreeWidget* parent)
     : QTreeWidgetItem(parent), m_info(std::move(info)) {
-	setSizeHint(NameColumn, QSize(0, 80));
+	setSizeHint(CardColumn, QSize(0, 64));
 
-	m_status_widget = new QWidget(parent);
-	MakeTransparent(m_status_widget);
-	auto* layout = new QHBoxLayout(m_status_widget);
-	layout->setContentsMargins(4, 0, 4, 0);
-	layout->setSpacing(8);
+	m_card_widget = new QWidget(parent);
+	MakeTransparent(m_card_widget);
+	auto* layout = new QHBoxLayout(m_card_widget);
+	layout->setContentsMargins(16, 8, 16, 8);
+	layout->setSpacing(12);
 
-	m_status_indicator = new QLabel(m_status_widget);
-	m_status_indicator->setFixedSize(QSize(10, 10));
-	layout->addWidget(m_status_indicator);
+	m_icon_label = new QLabel(m_card_widget);
+	m_icon_label->setFixedSize(QSize(48, 48));
+	layout->addWidget(m_icon_label);
 
-	m_status_combo = new NoWheelComboBox(m_status_widget);
+	auto* text_layout = new QVBoxLayout;
+	text_layout->setSpacing(2);
+	text_layout->setContentsMargins(0, 0, 0, 0);
+
+	m_name_label = new QLabel(m_card_widget);
+	m_name_label->setStyleSheet(QStringLiteral(
+	    "font-size: 14px; font-weight: 600; color: #ffffff; background: transparent;"));
+	text_layout->addWidget(m_name_label);
+
+	m_subtitle_label = new QLabel(m_card_widget);
+	m_subtitle_label->setStyleSheet(QStringLiteral(
+	    "font-size: 11px; color: rgba(255,255,255,0.3); background: transparent;"));
+	text_layout->addWidget(m_subtitle_label);
+
+	layout->addLayout(text_layout, 1);
+
+	m_status_dot = new QLabel(m_card_widget);
+	m_status_dot->setFixedSize(QSize(8, 8));
+	layout->addWidget(m_status_dot);
+
+	m_status_combo = new NoWheelComboBox(m_card_widget);
 	MakeTransparent(m_status_combo);
 	AddStatus(m_status_combo, Configuration::GameStatus::Unknown);
 	AddStatus(m_status_combo, Configuration::GameStatus::MainMenu);
@@ -136,29 +122,31 @@ ConfigurationItem::ConfigurationItem(std::unique_ptr<Configuration> info, QTreeW
 	AddStatus(m_status_combo, Configuration::GameStatus::Logo);
 	AddStatus(m_status_combo, Configuration::GameStatus::DoesntBoot);
 	m_status_combo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-	m_status_combo->setFixedWidth(120);
+	m_status_combo->setFixedWidth(100);
 	m_status_combo->setStyleSheet(QStringLiteral(
-	    "QComboBox { background: transparent; border: none; color: #b0b0c8; font-size: 12px; padding-left: 2px; }"
-	    "QComboBox:focus { background: rgba(255,255,255,0.08); border-radius: 4px; }"
-	    "QComboBox::drop-down { border: none; width: 20px; }"
-	    "QComboBox QAbstractItemView { background: #1e1f26; color: #ffffff; "
-	    "border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 4px; "
-	    "selection-background-color: #004fff; outline: none; }"));
+	    "QComboBox { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); "
+	    "border-radius: 12px; color: rgba(255,255,255,0.5); font-size: 11px; padding: 4px 10px; }"
+	    "QComboBox:hover { border-color: rgba(0,79,255,0.3); }"
+	    "QComboBox::drop-down { border: none; width: 16px; }"
+	    "QComboBox QAbstractItemView { background: #1a1b22; color: #ffffff; "
+	    "border: 1px solid rgba(0,79,255,0.2); border-radius: 8px; padding: 4px; "
+	    "selection-background-color: rgba(0,79,255,0.3); outline: none; }"));
 	layout->addWidget(m_status_combo);
-	layout->addStretch(1);
 
-	parent->setItemWidget(this, StatusColumn, m_status_widget);
-
-	m_comment_edit = new QLineEdit(parent);
+	m_comment_edit = new QLineEdit(m_card_widget);
 	MakeTransparent(m_comment_edit);
 	m_comment_edit->setClearButtonEnabled(true);
 	m_comment_edit->setFrame(false);
+	m_comment_edit->setPlaceholderText(QStringLiteral("Add note..."));
 	m_comment_edit->setStyleSheet(QStringLiteral(
-	    "QLineEdit { background: transparent; border: none; color: #b0b0c8; font-size: 12px; padding-left: 2px; "
-	    "selection-background-color: #004fff; }"
-	    "QLineEdit:focus { background: rgba(255,255,255,0.06); "
-	    "border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; }"));
-	parent->setItemWidget(this, CommentsColumn, m_comment_edit);
+	    "QLineEdit { background: rgba(255,255,255,0.03); border: 1px solid transparent; "
+	    "border-radius: 12px; color: rgba(255,255,255,0.3); font-size: 11px; padding: 4px 10px; "
+	    "max-width: 120px; selection-background-color: #004fff; }"
+	    "QLineEdit:focus { border-color: rgba(0,79,255,0.3); "
+	    "background: rgba(0,79,255,0.06); color: #ffffff; }"));
+	layout->addWidget(m_comment_edit);
+
+	parent->setItemWidget(this, CardColumn, m_card_widget);
 
 	Update();
 	SetRunning(false);
@@ -167,26 +155,25 @@ ConfigurationItem::ConfigurationItem(std::unique_ptr<Configuration> info, QTreeW
 ConfigurationItem::~ConfigurationItem() = default;
 
 void ConfigurationItem::Update() {
-	const auto display_text = GetDisplayText(*m_info);
-	const auto path         = GetPathText(*m_info);
+	m_name_label->setText(m_info->name);
 
-	setText(NameColumn, m_info->name);
-	setText(SerialColumn, m_info->title_id);
-	setText(FirmwareVersionColumn,
-	        m_info->firmwareVer.isEmpty() ? QStringLiteral("\u2014") : m_info->firmwareVer);
-	setText(PathColumn, path);
-	setText(StatusColumn, {});
-	setText(CommentsColumn, {});
-	for (int column = NameColumn; column <= CommentsColumn; column++) {
-		setToolTip(column, display_text);
+	QString subtitle;
+	if (!m_info->title_id.isEmpty()) {
+		subtitle = m_info->title_id;
 	}
+	if (!m_info->firmwareVer.isEmpty()) {
+		if (!subtitle.isEmpty()) subtitle += QStringLiteral("  \u00B7  ");
+		subtitle += QStringLiteral("FW ") + m_info->firmwareVer;
+	}
+	m_subtitle_label->setText(subtitle);
+
 	SetStatus(m_status_combo, m_info->game_status);
 	if (m_comment_edit->text() != m_info->game_comment) {
 		m_comment_edit->setText(m_info->game_comment);
 	}
 
 	UpdateIcon();
-	UpdateStatusIndicator();
+	UpdateStatusDot();
 }
 
 bool ConfigurationItem::operator<(const QTreeWidgetItem& other) const {
@@ -194,38 +181,11 @@ bool ConfigurationItem::operator<(const QTreeWidgetItem& other) const {
 	if (other_item == nullptr) {
 		return QTreeWidgetItem::operator<(other);
 	}
-
-	const int column = treeWidget() != nullptr ? treeWidget()->sortColumn() : NameColumn;
-	switch (column) {
-		case NameColumn: return GetSortText(*m_info) < GetSortText(*other_item->m_info);
-		case StatusColumn:
-			return GetStatusText(m_info->game_status) <
-			       GetStatusText(other_item->m_info->game_status);
-		case FirmwareVersionColumn: {
-			const auto& version       = m_info->firmwareVer;
-			const auto& other_version = other_item->m_info->firmwareVer;
-			if (version.isEmpty() || other_version.isEmpty()) {
-				return version.isEmpty() && !other_version.isEmpty();
-			}
-			return QVersionNumber::compare(QVersionNumber::fromString(version),
-			                               QVersionNumber::fromString(other_version)) < 0;
-		}
-		case CommentsColumn:
-			return m_info->game_comment.toCaseFolded() <
-			       other_item->m_info->game_comment.toCaseFolded();
-		default: return text(column).toCaseFolded() < other.text(column).toCaseFolded();
-	}
+	return m_info->name.toCaseFolded() < other_item->m_info->name.toCaseFolded();
 }
 
 void ConfigurationItem::SetRunning(bool state) {
 	m_running = state;
-
-	QFont f = font(NameColumn);
-	f.setBold(state);
-	for (int column = NameColumn; column <= CommentsColumn; column++) {
-		setFont(column, f);
-	}
-
 	UpdateIcon();
 }
 
@@ -240,42 +200,46 @@ void ConfigurationItem::UpdateIcon() {
 	if (QFileInfo::exists(icon_file)) {
 		QPixmap pix(icon_file);
 		if (!pix.isNull()) {
-			QPixmap scaled = pix.scaled(56, 56, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+			QPixmap scaled = pix.scaled(48, 48, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 			QPixmap rounded(scaled.size());
 			rounded.fill(Qt::transparent);
 			QPainter p(&rounded);
 			p.setRenderHint(QPainter::Antialiasing);
 			QPainterPath path;
-			path.addRoundedRect(QRectF(0, 0, 56, 56), 12, 12);
+			path.addRoundedRect(QRectF(0, 0, 48, 48), 12, 12);
 			p.setClipPath(path);
 			p.drawPixmap(0, 0, scaled);
-			p.setPen(QPen(QColor(255, 255, 255, 20), 1));
+			p.setPen(QPen(QColor(255, 255, 255, 16), 1));
 			p.setBrush(Qt::NoBrush);
-			p.drawRoundedRect(QRectF(0.5, 0.5, 55, 55), 12, 12);
+			p.drawRoundedRect(QRectF(0.5, 0.5, 47, 47), 12, 12);
 			p.end();
-			setIcon(NameColumn, QIcon(rounded));
+			m_icon_label->setPixmap(rounded);
 			return;
 		}
 	}
 
-	if (m_running) {
-		setIcon(NameColumn, StandardIcon(QStyle::SP_MediaPlay));
-	} else if (m_info->custom_settings) {
-		setIcon(NameColumn, StandardIcon(QStyle::SP_FileIcon));
-	} else {
-		setIcon(NameColumn, StandardIcon(QStyle::SP_ComputerIcon));
-	}
+	QPixmap fallback(48, 48);
+	fallback.fill(Qt::transparent);
+	QPainter p(&fallback);
+	p.setRenderHint(QPainter::Antialiasing);
+	QPainterPath path;
+	path.addRoundedRect(QRectF(0, 0, 48, 48), 12, 12);
+	p.fillPath(path, QColor(255, 255, 255, 8));
+	p.setPen(QPen(QColor(255, 255, 255, 12), 1));
+	p.drawRoundedRect(QRectF(0.5, 0.5, 47, 47), 12, 12);
+	p.end();
+	m_icon_label->setPixmap(fallback);
 }
 
-void ConfigurationItem::UpdateStatusIndicator() {
+void ConfigurationItem::UpdateStatusDot() {
 	const auto color = GetStatusColor(m_info->game_status);
-	m_status_indicator->setStyleSheet(
+	m_status_dot->setStyleSheet(
 	    QStringLiteral(
-	        "background-color: %1;"
-	        "border: 1px solid rgba(255,255,255,0.06);"
-	        "border-radius: 5px;"
-	        "min-width: 10px; max-width: 10px;"
-	        "min-height: 10px; max-height: 10px;")
+	        "background-color: %1; border-radius: 4px;"
+	        "min-width: 8px; max-width: 8px; min-height: 8px; max-height: 8px;")
 	        .arg(color));
-	m_status_indicator->setToolTip(GetStatusText(m_info->game_status));
+	m_status_dot->setToolTip(GetStatusText(m_info->game_status));
 }
+
+QComboBox* ConfigurationItem::GetStatusCombo() { return m_status_combo; }
+QLineEdit* ConfigurationItem::GetCommentEdit() { return m_comment_edit; }

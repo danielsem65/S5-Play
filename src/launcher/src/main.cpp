@@ -10,7 +10,7 @@ class QStyle;
 
 static const char* PS5_STYLE = R"(
 	QDialog, QWidget {
-		background-color: #14151a;
+		background-color: #0a0a0d;
 		color: #ffffff;
 		font-family: "Segoe UI", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
 	}

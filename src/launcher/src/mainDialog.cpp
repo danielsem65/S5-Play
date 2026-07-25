@@ -20,7 +20,6 @@
 #include <QSettings>
 #include <QStringList>
 #include <QTextStream>
-#include <QToolButton>
 #include <QTreeWidget>
 #include <QVariant>
 #include <QtCore>
@@ -123,15 +122,15 @@ void MainDialogPrivate::Setup(MainDialog* main_dialog) {
 	m_ui->titleBar->setStyleSheet(QStringLiteral(
 	    "QWidget#titleBar {"
 	    "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
-	    "    stop: 0 #0e0f13,"
-	    "    stop: 0.5 #13141a,"
-	    "    stop: 1 #0e0f13);"
-	    "  border-bottom: 1px solid rgba(0,79,255,0.12);"
+	    "    stop: 0 #08080a,"
+	    "    stop: 0.5 #0c0c10,"
+	    "    stop: 1 #08080a);"
+	    "  border-bottom: 1px solid rgba(0,79,255,0.08);"
 	    "}"));
 
 	m_ui->brandLabel->setStyleSheet(QStringLiteral(
-	    "font-size: 16px; font-weight: 900;"
-	    "letter-spacing: 4px; color: #ffffff;"
+	    "font-size: 15px; font-weight: 900;"
+	    "letter-spacing: 5px; color: #ffffff;"
 	    "background: transparent;"
 	    "padding-left: 4px;"));
 
@@ -141,19 +140,19 @@ void MainDialogPrivate::Setup(MainDialog* main_dialog) {
 	m_ui->statusBar->setStyleSheet(QStringLiteral(
 	    "QWidget#statusBar {"
 	    "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
-	    "    stop: 0 rgba(14,15,19,200),"
-	    "    stop: 1 rgba(10,11,14,230));"
-	    "  border-top: 1px solid rgba(0,79,255,0.08);"
+	    "    stop: 0 rgba(8,8,10,200),"
+	    "    stop: 1 rgba(5,5,8,230));"
+	    "  border-top: 1px solid rgba(0,79,255,0.06);"
 	    "}"));
 	m_ui->statusVersion->setStyleSheet(QStringLiteral(
-	    "font-size: 11px; color: rgba(255,255,255,0.25);"
-	    "letter-spacing: 2px; font-weight: 600; background: transparent;"));
+	    "font-size: 10px; color: rgba(255,255,255,0.2);"
+	    "letter-spacing: 3px; font-weight: 600; background: transparent;"));
 	m_ui->statusCenter->setStyleSheet(QStringLiteral(
-	    "font-size: 11px; color: rgba(255,255,255,0.18);"
-	    "letter-spacing: 1px; background: transparent;"));
+	    "font-size: 10px; color: rgba(255,255,255,0.15);"
+	    "letter-spacing: 1.5px; background: transparent;"));
 	m_ui->statusRight->setStyleSheet(QStringLiteral(
-	    "font-size: 11px; color: rgba(255,255,255,0.2);"
-	    "letter-spacing: 1px; background: transparent;"));
+	    "font-size: 10px; color: rgba(255,255,255,0.15);"
+	    "letter-spacing: 1.5px; background: transparent;"));
 
 	connect(main_dialog, &MainDialog::Start, this, &MainDialogPrivate::FindInterpreter,
 	        Qt::QueuedConnection);
@@ -162,18 +161,6 @@ void MainDialogPrivate::Setup(MainDialog* main_dialog) {
 	connect(main_dialog, &MainDialog::Resize, [this]() {
 		g_last_geometry = m_main_dialog->saveGeometry();
 		m_ui->widget->WriteSettings();
-	});
-
-	auto* settingsBtn = m_ui->welcomeSettingsBtn;
-	auto* gsBtn = m_ui->widget->findChild<QToolButton*>(QStringLiteral("global_settings_button"));
-	connect(settingsBtn, &QPushButton::clicked, [gsBtn, this]() {
-		if (gsBtn != nullptr) gsBtn->click();
-		Update();
-	});
-	auto* browseBtn = m_ui->welcomeBrowseBtn;
-	connect(browseBtn, &QPushButton::clicked, [gsBtn, this]() {
-		if (gsBtn != nullptr) gsBtn->click();
-		Update();
 	});
 
 	connect(&m_process,
@@ -417,7 +404,7 @@ void MainDialogPrivate::Update() {
 	}
 
 	bool has_games = (game_count > 0);
-	m_ui->mainStack->setCurrentIndex(has_games ? 1 : 0);
+	m_ui->mainStack->setCurrentIndex(1);
 
 	if (has_games) {
 		m_ui->statusCenter->setText(
