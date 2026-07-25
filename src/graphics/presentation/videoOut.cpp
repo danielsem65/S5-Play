@@ -32,6 +32,7 @@ struct GraphicContext;
 
 namespace Libs::VideoOut {
 
+
 LIB_NAME("VideoOut", "VideoOut");
 
 namespace EventQueue = LibKernel::EventQueue;
@@ -168,7 +169,7 @@ struct VideoOutConfig {
 
 class FlipQueue {
 public:
-	FlipQueue() { EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread()); }
+	FlipQueue() { CHECK(!Common::Thread::IsMainThread()); }
 	~FlipQueue() { KYTY_NOT_IMPLEMENTED; }
 	KYTY_CLASS_NO_COPY(FlipQueue);
 
@@ -211,7 +212,7 @@ class VideoOutContext {
 public:
 	static constexpr int VIDEO_OUT_NUM_MAX = 2;
 
-	VideoOutContext() { EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread()); }
+	VideoOutContext() { CHECK(!Common::Thread::IsMainThread()); }
 	~VideoOutContext() { KYTY_NOT_IMPLEMENTED; }
 
 	KYTY_CLASS_NO_COPY(VideoOutContext);
@@ -307,14 +308,14 @@ static void RemoveVideoOutEventQueue(EventQueue::KernelEqueue       eq,
                                      EventQueue::KernelEqueueEvent* event) {
 	EXIT_IF(event == nullptr);
 	EXIT_IF(event->filter.data == nullptr);
-	EXIT_NOT_IMPLEMENTED(event->event.filter != EventQueue::KERNEL_EVFILT_VIDEO_OUT);
+	CHECK(event->event.filter != EventQueue::KERNEL_EVFILT_VIDEO_OUT);
 
 	auto* video_out = static_cast<VideoOutConfig*>(event->filter.data);
 	auto& queues    = VideoOutEventQueuesFor(*video_out, GetVideoOutEventKind(event->event.ident));
 	Common::LockGuard lock(video_out->mutex);
 	EXIT_IF(queues.empty());
 	const auto entry = std::find(queues.begin(), queues.end(), eq);
-	EXIT_NOT_IMPLEMENTED(entry == queues.end());
+	CHECK(entry == queues.end());
 	*entry = nullptr;
 }
 
@@ -326,7 +327,7 @@ static void TriggerVideoOutEventsLocked(const VideoOutEventQueues& queues, Video
 		}
 		const auto result = EventQueue::KernelTriggerEvent(
 		    eq, VideoOutEventId(kind), EventQueue::KERNEL_EVFILT_VIDEO_OUT, trigger_data);
-		EXIT_NOT_IMPLEMENTED(result != OK);
+		CHECK(result != OK);
 	}
 }
 
@@ -337,7 +338,7 @@ static void DeleteVideoOutEventsLocked(VideoOutEventQueues& queues, VideoOutEven
 		}
 		const auto result = EventQueue::KernelDeleteEvent(eq, VideoOutEventId(kind),
 		                                                  EventQueue::KERNEL_EVFILT_VIDEO_OUT);
-		EXIT_NOT_IMPLEMENTED(result != OK);
+		CHECK(result != OK);
 	}
 	queues.clear();
 }
@@ -582,8 +583,8 @@ int VideoOutContext::Open() {
 void VideoOutContext::Close(int handle) {
 	Common::LockGuard lock(m_mutex);
 
-	EXIT_NOT_IMPLEMENTED(handle >= VIDEO_OUT_NUM_MAX);
-	EXIT_NOT_IMPLEMENTED(!m_video_out_ctx[handle].opened);
+	CHECK(handle >= VIDEO_OUT_NUM_MAX);
+	CHECK(!m_video_out_ctx[handle].opened);
 
 	auto& config  = m_video_out_ctx[handle];
 	config.opened = false;
@@ -974,9 +975,9 @@ KYTY_SYSV_ABI int VideoOutOpen(int user_id, int bus_type, int index, const void*
 
 	EXIT_IF(g_video_out_context == nullptr);
 
-	EXIT_NOT_IMPLEMENTED(user_id != 255 && user_id != 0);
-	EXIT_NOT_IMPLEMENTED(bus_type != 0);
-	EXIT_NOT_IMPLEMENTED(index != 0);
+	CHECK(user_id != 255 && user_id != 0);
+	CHECK(bus_type != 0);
+	CHECK(index != 0);
 
 	LOGF("\t param = 0x%016" PRIx64 "\n", reinterpret_cast<uint64_t>(param));
 
@@ -1010,7 +1011,7 @@ KYTY_SYSV_ABI void VideoOutSetBufferAttribute2(VideoOutBufferAttribute2* attribu
                                                uint64_t dcc_cb_register_clear_color) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(attribute == nullptr);
+	CHECK(attribute == nullptr);
 
 	LOGF("\t pixel_format                = %016" PRIx64 "\n"
 	     "\t tiling_mode                 = %" PRIu32 "\n"
@@ -1370,7 +1371,7 @@ void VideoOutWaitFlipDone(int handle, int index) {
 	auto* ctx = g_video_out_context->Get(handle);
 	EXIT_IF(ctx == nullptr);
 
-	EXIT_NOT_IMPLEMENTED(!IsValidBufferIndex(index));
+	CHECK(!IsValidBufferIndex(index));
 	g_video_out_context->GetFlipQueue().Wait(*ctx, index);
 }
 

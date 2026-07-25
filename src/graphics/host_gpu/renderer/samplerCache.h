@@ -19,7 +19,7 @@ struct GraphicContext;
 class SamplerCache {
 public:
 	explicit SamplerCache(GraphicContext& graphics): m_graphics(graphics) {
-		EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+		CHECK(!Common::Thread::IsMainThread());
 	}
 	~SamplerCache() { KYTY_NOT_IMPLEMENTED; }
 	KYTY_CLASS_NO_COPY(SamplerCache);

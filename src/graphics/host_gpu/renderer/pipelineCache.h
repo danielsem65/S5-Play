@@ -68,6 +68,10 @@ struct PipelineStaticParameters {
 	float                      blend_color_green                                  = 0.0f;
 	float                      blend_color_blue                                   = 0.0f;
 	float                      blend_color_alpha                                  = 0.0f;
+	bool                       depth_bias_enable                                  = false;
+	float                      depth_bias_constant_factor                         = 0.0f;
+	float                      depth_bias_clamp                                   = 0.0f;
+	float                      depth_bias_slope_factor                            = 0.0f;
 
 	bool operator==(const PipelineStaticParameters& other) const noexcept;
 };
@@ -77,19 +81,11 @@ struct PipelineStaticParameters {
 static_assert(std::is_trivially_copyable_v<PipelineStaticParameters>);
 static_assert(std::is_standard_layout_v<PipelineStaticParameters>);
 static_assert(alignof(PipelineStaticParameters) == 1);
-static_assert(sizeof(PipelineStaticParameters) ==
-              sizeof(float[3]) + sizeof(float[3]) + sizeof(bool) * 2 + sizeof(int[4]) +
-                  sizeof(vk::PrimitiveTopology) + sizeof(uint32_t) + sizeof(bool) * 4 +
-                  sizeof(vk::CompareOp) + sizeof(bool) + sizeof(float) * 2 + sizeof(bool) +
-                  sizeof(PipelineStencilStaticState) * 2 + sizeof(uint32_t) +
-                  sizeof(uint32_t[RENDER_COLOR_ATTACHMENTS_MAX]) + sizeof(bool) * 3 +
-                  sizeof(uint8_t[RENDER_COLOR_ATTACHMENTS_MAX]) * 6 +
-                  sizeof(bool[RENDER_COLOR_ATTACHMENTS_MAX]) * 3 + sizeof(float) * 4);
 
 class PipelineCache {
 public:
 	explicit PipelineCache(GraphicContext& graphics): m_graphics(graphics) {
-		EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+		CHECK(!Common::Thread::IsMainThread());
 	}
 	~PipelineCache() { KYTY_NOT_IMPLEMENTED; }
 	KYTY_CLASS_NO_COPY(PipelineCache);

@@ -180,7 +180,7 @@ KernelEventFlagPrivate::Result KernelEventFlagPrivate::Wait(uint64_t bits, WaitM
 void KernelEventFlagPrivate::Set(uint64_t bits) {
 	Common::LockGuard lock(m_mutex);
 
-	EXIT_NOT_IMPLEMENTED(m_status == Status::Deleted);
+	CHECK(m_status == Status::Deleted);
 
 	while (m_status != Status::Set) {
 		m_mutex.Unlock();
@@ -196,7 +196,7 @@ void KernelEventFlagPrivate::Set(uint64_t bits) {
 void KernelEventFlagPrivate::Clear(uint64_t bits) {
 	Common::LockGuard lock(m_mutex);
 
-	EXIT_NOT_IMPLEMENTED(m_status == Status::Deleted);
+	CHECK(m_status == Status::Deleted);
 
 	while (m_status != Status::Set) {
 		m_mutex.Unlock();
@@ -210,7 +210,7 @@ void KernelEventFlagPrivate::Clear(uint64_t bits) {
 void KernelEventFlagPrivate::Cancel(uint64_t bits, int* num_waiting_threads) {
 	Common::LockGuard lock(m_mutex);
 
-	EXIT_NOT_IMPLEMENTED(m_status == Status::Deleted);
+	CHECK(m_status == Status::Deleted);
 
 	while (m_status != Status::Set) {
 		m_mutex.Unlock();

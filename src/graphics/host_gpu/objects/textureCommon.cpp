@@ -17,6 +17,8 @@
 #include <cstring>
 
 namespace Libs::Graphics {
+
+
 namespace {
 
 struct RenderTargetFormatMapping {
@@ -255,16 +257,20 @@ bool TextureCheckFormat(vk::ImageCreateInfo& image_info) {
 		};
 
 		if (image_info.format == vk::Format::eR8G8B8A8Srgb) {
-			// TODO() convert SRGB -> LINEAR in shader
-			return apply_fallback(
-			    vk::Format::eR8G8B8A8Unorm,
-			    "replace vk::Format::eR8G8B8A8Srgb => vk::Format::eR8G8B8A8Unorm");
+			LOGF("eR8G8B8A8Srgb not supported; trying UNORM fallback (colors will be wrong)\n");
+			image_info.format = vk::Format::eR8G8B8A8Unorm;
+			if (TextureCheckFormat(image_info)) {
+				return true;
+			}
+			return false;
 		}
 		if (image_info.format == vk::Format::eB8G8R8A8Srgb) {
-			// TODO() convert SRGB -> LINEAR in shader
-			return apply_fallback(
-			    vk::Format::eB8G8R8A8Unorm,
-			    "replace vk::Format::eB8G8R8A8Srgb => vk::Format::eB8G8R8A8Unorm");
+			LOGF("eB8G8R8A8Srgb not supported; trying UNORM fallback (colors will be wrong)\n");
+			image_info.format = vk::Format::eB8G8R8A8Unorm;
+			if (TextureCheckFormat(image_info)) {
+				return true;
+			}
+			return false;
 		}
 		return false;
 	}
@@ -421,16 +427,16 @@ vk::ComponentMapping TextureCreateImage(VulkanImage& vk_obj,
 	const bool volume_texture = TextureIs3DTexture(params.type);
 
 	auto pixel_format = TextureGetFormat(params.fmt);
-	EXIT_NOT_IMPLEMENTED(pixel_format == vk::Format::eUndefined);
-	EXIT_NOT_IMPLEMENTED(params.width == 0);
-	EXIT_NOT_IMPLEMENTED(params.height == 0);
-	EXIT_NOT_IMPLEMENTED(params.depth == 0);
-	EXIT_NOT_IMPLEMENTED(params.levels == 0 || params.levels > 16);
+	CHECK(pixel_format == vk::Format::eUndefined);
+	CHECK(params.width == 0);
+	CHECK(params.height == 0);
+	CHECK(params.depth == 0);
+	CHECK(params.levels == 0 || params.levels > 16);
 
 	uint32_t image_height = 0;
 	uint32_t image_mips   = 0;
 	if (params.image_layout == TextureUploadDestination::MipAtlas) {
-		EXIT_NOT_IMPLEMENTED(params.base_level != 0);
+		CHECK(params.base_level != 0);
 		const auto atlas_depth = (array_texture || volume_texture ? 1u : params.depth);
 		image_height           = TextureCalcMipmapAtlasImageHeight(
 		    pixel_format, static_cast<uint32_t>(params.width), static_cast<uint32_t>(params.height),
@@ -530,7 +536,7 @@ vk::ComponentMapping TextureCreateImage(VulkanImage& vk_obj,
 	vk_obj.memory.property = vk::MemoryPropertyFlagBits::eDeviceLocal;
 
 	bool created = graphics.CreateImage(image_info, vk_obj);
-	EXIT_NOT_IMPLEMENTED(!created);
+	CHECK(!created);
 
 	return components;
 }
@@ -633,8 +639,8 @@ static uint64_t SetLinearUploadLevels(TileSizeOffset* level_sizes, uint32_t fmt,
 
 	for (uint32_t i = 0; i < levels; i++) {
 		const auto size = CalcLinearUploadLevelSize(fmt, pitch, h);
-		EXIT_NOT_IMPLEMENTED(size > 0xffffffffull);
-		EXIT_NOT_IMPLEMENTED(offset > 0xffffffffull);
+		CHECK(size > 0xffffffffull);
+		CHECK(offset > 0xffffffffull);
 
 		level_sizes[i].size       = static_cast<uint32_t>(size);
 		level_sizes[i].offset     = static_cast<uint32_t>(offset);
@@ -768,7 +774,7 @@ std::vector<BufferImageCopy> TextureBuildUploadRegions(const TextureUploadLayout
 	std::vector<BufferImageCopy> regions;
 	regions.reserve(GetTextureRegionCount(depth, levels, volume_texture));
 	for (uint32_t i = 0; i < levels; i++) {
-		EXIT_NOT_IMPLEMENTED(layout.level_sizes[i].size == 0);
+		CHECK(layout.level_sizes[i].size == 0);
 
 		const auto mipmap_offset = Transfer::MipmapAtlasOffset(i, width, height);
 		const auto mip_depth     = GetTextureLevelDepth(depth, i, volume_texture);
@@ -860,7 +866,7 @@ static void UploadFmaskIdentity(VulkanImage& vk_obj,
 	uint64_t                     upload_size    = 0;
 	for (auto& region: upload_regions) {
 		upload_size = (upload_size + 255u) & ~uint64_t {255};
-		EXIT_NOT_IMPLEMENTED(upload_size > UINT32_MAX);
+		CHECK(upload_size > UINT32_MAX);
 		region.offset = static_cast<uint32_t>(upload_size);
 		upload_size += FmaskRegionCopySize(region);
 	}

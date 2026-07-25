@@ -51,7 +51,7 @@ static void MountOrCreateDir(const std::filesystem::path& dir, const std::string
 		Common::File::CreateDirectories(dir);
 	}
 
-	EXIT_NOT_IMPLEMENTED(!Common::File::IsDirectoryExisting(dir));
+	CHECK(!Common::File::IsDirectoryExisting(dir));
 
 	Libs::LibKernel::FileSystem::Mount(dir, point);
 	auto dir_text = Common::PathToString(dir);
@@ -196,7 +196,7 @@ void Run(const RunOptions& options) {
 	PrintSystemInfo();
 
 	int ok = atexit(KytyClose);
-	EXIT_NOT_IMPLEMENTED(ok != 0);
+	CHECK(ok != 0);
 
 	Libs::LibKernel::FileSystem::Mount(options.app0_dir, "/app0");
 	Libs::LibKernel::FileSystem::Mount(options.app0_dir, "/hostapp");

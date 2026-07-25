@@ -25,6 +25,8 @@
 #include <vector>
 
 namespace Libs::Graphics {
+
+
 namespace {
 
 constexpr uint32_t FAMILY_COUNT            = static_cast<uint32_t>(TileBlockFamily::Count);
@@ -159,7 +161,7 @@ void TileCompute::Prepare(bool to_tiled, uint64_t tiled_capacity, uint64_t linea
                           std::vector<Dispatch>&       dispatches) const {
 	EXIT_IF(infos.empty() || tiled_capacity == 0 || linear_capacity == 0);
 	const auto& limits = graphics.GetPhysicalDeviceProperties().limits;
-	EXIT_NOT_IMPLEMENTED(tiled_capacity > UINT32_MAX || linear_capacity > UINT32_MAX ||
+	CHECK(tiled_capacity > UINT32_MAX || linear_capacity > UINT32_MAX ||
 	                     AlignToDword(tiled_capacity) > limits.maxStorageBufferRange ||
 	                     AlignToDword(linear_capacity) > limits.maxStorageBufferRange);
 
@@ -171,7 +173,7 @@ void TileCompute::Prepare(bool to_tiled, uint64_t tiled_capacity, uint64_t linea
 		const uint32_t  tiled_height = info.tiled_height != 0 ? info.tiled_height : info.height;
 		const uint64_t  groups_x     = (static_cast<uint64_t>(info.width) + 7u) / 8u;
 		const uint64_t  groups_y     = (static_cast<uint64_t>(info.height) + 7u) / 8u;
-		EXIT_NOT_IMPLEMENTED(
+		CHECK(
 		    !TileGetBlockLayout(info.family, info.bytes_per_element, block) || info.width == 0 ||
 		    info.height == 0 || info.depth == 0 || info.pitch < info.width ||
 		    groups_x > limits.maxComputeWorkGroupCount[0] ||
@@ -183,13 +185,13 @@ void TileCompute::Prepare(bool to_tiled, uint64_t tiled_capacity, uint64_t linea
 		    (block.block_depth == 1 && info.depth != 1));
 
 		uint64_t pitch_bytes = 0;
-		EXIT_NOT_IMPLEMENTED(!CheckedMultiply(info.pitch, info.bytes_per_element, pitch_bytes) ||
+		CHECK(!CheckedMultiply(info.pitch, info.bytes_per_element, pitch_bytes) ||
 		                     pitch_bytes > UINT32_MAX);
 		uint64_t slice_bytes = info.linear_slice_stride;
-		EXIT_NOT_IMPLEMENTED(slice_bytes == 0 &&
+		CHECK(slice_bytes == 0 &&
 		                     !CheckedMultiply(pitch_bytes, info.height, slice_bytes));
 		uint64_t linear_used = 0, minimum_slice = 0;
-		EXIT_NOT_IMPLEMENTED(!CheckedMultiply(pitch_bytes, info.height, minimum_slice) ||
+		CHECK(!CheckedMultiply(pitch_bytes, info.height, minimum_slice) ||
 		                     (info.depth > 1 && slice_bytes < minimum_slice) ||
 		                     !CheckedAddProduct(linear_used, info.depth - 1u, slice_bytes) ||
 		                     !CheckedAddProduct(linear_used, info.height - 1u, pitch_bytes) ||
@@ -201,12 +203,12 @@ void TileCompute::Prepare(bool to_tiled, uint64_t tiled_capacity, uint64_t linea
 		const uint64_t rows =
 		    (static_cast<uint64_t>(tiled_height) + block.block_height - 1u) / block.block_height;
 		uint64_t blocks_per_slice = 0;
-		EXIT_NOT_IMPLEMENTED(!CheckedMultiply(columns, rows, blocks_per_slice) ||
+		CHECK(!CheckedMultiply(columns, rows, blocks_per_slice) ||
 		                     columns > UINT32_MAX || blocks_per_slice > UINT32_MAX ||
 		                     rows * block.block_height > UINT32_MAX);
 		if (info.tail) {
 			const bool supported = info.family != TileBlockFamily::Standard256B;
-			EXIT_NOT_IMPLEMENTED(
+			CHECK(
 			    !supported || info.depth > block.block_depth || info.tail_x >= block.block_width ||
 			    info.width > block.block_width - info.tail_x || info.tail_y >= block.block_height ||
 			    info.height > block.block_height - info.tail_y ||
@@ -215,12 +217,12 @@ void TileCompute::Prepare(bool to_tiled, uint64_t tiled_capacity, uint64_t linea
 			const uint64_t slices =
 			    (static_cast<uint64_t>(info.depth) + block.block_depth - 1u) / block.block_depth;
 			uint64_t tiled_used = 0;
-			EXIT_NOT_IMPLEMENTED(!CheckedMultiply(blocks_per_slice, slices, tiled_used) ||
+			CHECK(!CheckedMultiply(blocks_per_slice, slices, tiled_used) ||
 			                     !CheckedMultiply(tiled_used, block.block_size, tiled_used) ||
 			                     tiled_used > info.tiled_size);
 		}
 		const uint32_t alignment = std::min(info.bytes_per_element, 4u);
-		EXIT_NOT_IMPLEMENTED(((info.linear_offset | info.tiled_offset | pitch_bytes | slice_bytes) &
+		CHECK(((info.linear_offset | info.tiled_offset | pitch_bytes | slice_bytes) &
 		                      (alignment - 1u)) != 0);
 
 		Dispatch dispatch {};

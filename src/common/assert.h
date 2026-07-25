@@ -18,12 +18,14 @@ int DbgExitIfHandler(char const* expr, char const* file, int line)
     __attribute__((analyzer_noreturn));
 int DbgNotImplementedHandler(char const* expr, char const* file, int line)
     __attribute__((analyzer_noreturn));
+int DbgNotImplementedCheck(char const* expr, char const* file, int line);
 void DbgExit(int status) __attribute__((analyzer_noreturn));
 #else
 int  DbgExitHandler(char const* file, int line, std::string_view text);
 int  DbgExitHandler(char const* file, int line, fmt::text_style style, std::string_view text);
 int  DbgExitIfHandler(char const* expr, char const* file, int line);
 int  DbgNotImplementedHandler(char const* expr, char const* file, int line);
+int  DbgNotImplementedCheck(char const* expr, char const* file, int line);
 void DbgExit(int status);
 #endif
 
@@ -62,6 +64,13 @@ void DbgExit(int status);
 #define EXIT_NOT_IMPLEMENTED(x)                                                                    \
 	((void)((x) && Common::DbgNotImplementedHandler(#x, __FILE__, __LINE__) != 0 &&                \
 	        (EXIT_HALT(), 1) != 0))
-#define KYTY_NOT_IMPLEMENTED EXIT_NOT_IMPLEMENTED(true)
+#define KYTY_NOT_IMPLEMENTED CHECK(true)
+
+#ifndef KYTY_FINAL
+#define CHECK(n)                                                                                       \
+	((void)((n) && Common::DbgNotImplementedCheck(#n, __FILE__, __LINE__) != 0))
+#else
+#define CHECK(n) ((void)0)
+#endif
 
 #endif /* KYTY_COMMON_ASSERT_H_ */

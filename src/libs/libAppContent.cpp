@@ -102,7 +102,7 @@ int KYTY_SYSV_ABI AppContentInitialize(const AppContentInitParam* init_param,
 int KYTY_SYSV_ABI AppContentAppParamGetInt(uint32_t param_id, int32_t* value) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(value == nullptr);
+	CHECK(value == nullptr);
 
 	*value     = 0;
 	bool found = false;

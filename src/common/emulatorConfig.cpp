@@ -93,4 +93,8 @@ bool NggRectlistDrawEnabled() {
 	return g_config->ngg_rectlist_draw_enabled;
 }
 
+std::filesystem::path GetSaveDataFolder() {
+	return g_config->save_data_folder;
+}
+
 } // namespace Config

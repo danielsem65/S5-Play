@@ -13,7 +13,7 @@ RenderContext::RenderContext(GraphicContext& graphics)
     : m_graphics(graphics), m_pipeline_cache(graphics), m_descriptor_cache(graphics),
       m_framebuffer_cache(graphics), m_sampler_cache(graphics), m_gds_buffer(graphics),
       m_gpu_resources(graphics) {
-	EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+	CHECK(!Common::Thread::IsMainThread());
 }
 
 void RenderContext::AddEopEq(LibKernel::EventQueue::KernelEqueue eq, int id) {
@@ -54,14 +54,14 @@ void RenderContext::TriggerEopEvent(uint32_t context_id) {
 			auto       result = LibKernel::EventQueue::KernelTriggerEvent(
 			    eop_entry.eq, id, LibKernel::EventQueue::KERNEL_EVFILT_GRAPHICS,
 			    reinterpret_cast<void*>(static_cast<uintptr_t>(context_id)));
-			EXIT_NOT_IMPLEMENTED(result != OK && result != LibKernel::KERNEL_ERROR_ENOENT);
+			CHECK(result != OK && result != LibKernel::KERNEL_ERROR_ENOENT);
 		}
 	}
 
 	auto tsc    = LibKernel::KernelReadTsc();
 	auto result = LibKernel::EventQueue::KernelTriggerUserEventForAll(AGC_USER_INTERRUPT_EVENT,
 	                                                                  reinterpret_cast<void*>(tsc));
-	EXIT_NOT_IMPLEMENTED(result != OK && result != LibKernel::KERNEL_ERROR_ENOENT);
+	CHECK(result != OK && result != LibKernel::KERNEL_ERROR_ENOENT);
 }
 
 } // namespace Libs::Graphics

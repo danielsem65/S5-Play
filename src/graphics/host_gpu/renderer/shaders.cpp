@@ -22,6 +22,7 @@
 
 namespace Libs::Graphics {
 
+
 // IDK: maybe we can remove it?
 constexpr uint32_t kTemporaryPs5BufferFormat121 = 121u;
 
@@ -484,7 +485,7 @@ void CreatePipelineInternal(PipelineCache::GraphicsPipeline& pipeline, vk::Rende
 		LOGF("PipelineTrace: vkCreateShaderModule VS done result=%s module=%p\n",
 		     VulkanToString(result).c_str(), static_cast<void*>(vert_shader_module));
 	}
-	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+	CHECK(result != vk::Result::eSuccess);
 
 	if (ps_active) {
 		create_info.codeSize = ps_shader.size() * 4;
@@ -494,11 +495,11 @@ void CreatePipelineInternal(PipelineCache::GraphicsPipeline& pipeline, vk::Rende
 			LOGF("PipelineTrace: vkCreateShaderModule PS done result=%s module=%p\n",
 			     VulkanToString(result).c_str(), static_cast<void*>(frag_shader_module));
 		}
-		EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+		CHECK(result != vk::Result::eSuccess);
 	}
 
-	EXIT_NOT_IMPLEMENTED(vert_shader_module == nullptr);
-	EXIT_NOT_IMPLEMENTED(ps_active && frag_shader_module == nullptr);
+	CHECK(vert_shader_module == nullptr);
+	CHECK(ps_active && frag_shader_module == nullptr);
 
 	vk::PipelineShaderStageCreateInfo                     vert_shader_stage_info {};
 	vk::PipelineShaderStageRequiredSubgroupSizeCreateInfo vert_subgroup_size {};
@@ -587,8 +588,8 @@ void CreatePipelineInternal(PipelineCache::GraphicsPipeline& pipeline, vk::Rende
 				}
 			}
 
-			EXIT_NOT_IMPLEMENTED(vs_input_info.resources[index].AddTid());
-			EXIT_NOT_IMPLEMENTED(vs_input_info.resources[index].SwizzleEnabled());
+			CHECK(vs_input_info.resources[index].AddTid());
+			CHECK(vs_input_info.resources[index].SwizzleEnabled());
 
 			auto log_unsupported_vertex_swizzle = [index, attr_size, registers_num](
 			                                          uint32_t swizzle, uint32_t expected) {
@@ -731,10 +732,10 @@ void CreatePipelineInternal(PipelineCache::GraphicsPipeline& pipeline, vk::Rende
 	rasterizer.polygonMode             = vk::PolygonMode::eFill;
 	rasterizer.cullMode                = cull_mode;
 	rasterizer.frontFace               = front_face;
-	rasterizer.depthBiasEnable         = VK_FALSE;
-	rasterizer.depthBiasConstantFactor = 0.0f;
-	rasterizer.depthBiasClamp          = 0.0f;
-	rasterizer.depthBiasSlopeFactor    = 0.0f;
+	rasterizer.depthBiasEnable         = static_params.depth_bias_enable ? VK_TRUE : VK_FALSE;
+	rasterizer.depthBiasConstantFactor = static_params.depth_bias_constant_factor;
+	rasterizer.depthBiasClamp          = static_params.depth_bias_clamp;
+	rasterizer.depthBiasSlopeFactor    = static_params.depth_bias_slope_factor;
 	rasterizer.lineWidth               = 1.0f;
 
 	vk::PipelineMultisampleStateCreateInfo multisampling {};
@@ -751,7 +752,7 @@ void CreatePipelineInternal(PipelineCache::GraphicsPipeline& pipeline, vk::Rende
 	vk::PipelineColorBlendAttachmentState color_blend_attachment[RENDER_COLOR_ATTACHMENTS_MAX] = {};
 	for (uint32_t i = 0; i < static_params.color_count; i++) {
 		vk::ColorComponentFlags color_write_mask = {};
-		EXIT_NOT_IMPLEMENTED((static_params.color_mask[i] & ~0x0fu) != 0);
+		CHECK((static_params.color_mask[i] & ~0x0fu) != 0);
 		if ((static_params.color_mask[i] & 0x1u) != 0) {
 			color_write_mask |=
 			    static_cast<vk::ColorComponentFlags>(vk::ColorComponentFlagBits::eR);
@@ -854,9 +855,9 @@ void CreatePipelineInternal(PipelineCache::GraphicsPipeline& pipeline, vk::Rende
 		LOGF("PipelineTrace: vkCreatePipelineLayout done result=%s layout=%p\n",
 		     VulkanToString(result).c_str(), static_cast<void*>(pipeline.pipeline_layout));
 	}
-	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+	CHECK(result != vk::Result::eSuccess);
 
-	EXIT_NOT_IMPLEMENTED(pipeline.pipeline_layout == nullptr);
+	CHECK(pipeline.pipeline_layout == nullptr);
 
 	vk::PipelineDepthStencilStateCreateInfo depth_stencil_info {};
 	depth_stencil_info.sType            = vk::StructureType::ePipelineDepthStencilStateCreateInfo;
@@ -938,9 +939,9 @@ void CreatePipelineInternal(PipelineCache::GraphicsPipeline& pipeline, vk::Rende
 		LOGF("PipelineTrace: vkCreateGraphicsPipelines done result=%s pipeline=%p\n",
 		     VulkanToString(result).c_str(), static_cast<void*>(pipeline.pipeline));
 	}
-	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+	CHECK(result != vk::Result::eSuccess);
 
-	EXIT_NOT_IMPLEMENTED(pipeline.pipeline == nullptr);
+	CHECK(pipeline.pipeline == nullptr);
 
 	if (frag_shader_module != nullptr) {
 		graphics.device.destroyShaderModule(frag_shader_module, nullptr);
@@ -968,9 +969,9 @@ void CreatePipelineInternal(PipelineCache::ComputePipeline& pipeline,
 	auto result = graphics.device.createShaderModule(&create_info, nullptr, &comp_shader_module);
 	LOGF("PipelineTrace: vkCreateShaderModule CS done result=%s module=%p\n",
 	     VulkanToString(result).c_str(), static_cast<void*>(comp_shader_module));
-	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+	CHECK(result != vk::Result::eSuccess);
 
-	EXIT_NOT_IMPLEMENTED(comp_shader_module == nullptr);
+	CHECK(comp_shader_module == nullptr);
 
 	vk::PipelineShaderStageCreateInfo                     comp_shader_stage_info {};
 	vk::PipelineShaderStageRequiredSubgroupSizeCreateInfo comp_subgroup_size {};
@@ -1014,9 +1015,9 @@ void CreatePipelineInternal(PipelineCache::ComputePipeline& pipeline,
 	                                              &pipeline.pipeline_layout);
 	LOGF("PipelineTrace: vkCreatePipelineLayout CS done result=%s layout=%p\n",
 	     VulkanToString(result).c_str(), static_cast<void*>(pipeline.pipeline_layout));
-	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+	CHECK(result != vk::Result::eSuccess);
 
-	EXIT_NOT_IMPLEMENTED(pipeline.pipeline_layout == nullptr);
+	CHECK(pipeline.pipeline_layout == nullptr);
 
 	vk::ComputePipelineCreateInfo info {};
 	info.sType              = vk::StructureType::eComputePipelineCreateInfo;
@@ -1034,9 +1035,9 @@ void CreatePipelineInternal(PipelineCache::ComputePipeline& pipeline,
 	result = graphics.device.createComputePipelines(nullptr, 1, &info, nullptr, &pipeline.pipeline);
 	LOGF("PipelineTrace: vkCreateComputePipelines done result=%s pipeline=%p\n",
 	     VulkanToString(result).c_str(), static_cast<void*>(pipeline.pipeline));
-	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+	CHECK(result != vk::Result::eSuccess);
 
-	EXIT_NOT_IMPLEMENTED(pipeline.pipeline == nullptr);
+	CHECK(pipeline.pipeline == nullptr);
 
 	graphics.device.destroyShaderModule(comp_shader_module, nullptr);
 }

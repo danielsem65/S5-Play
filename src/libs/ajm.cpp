@@ -20,6 +20,7 @@
 
 namespace Libs::Audio::Ajm {
 
+
 LIB_NAME("Ajm", "Ajm");
 
 struct AjmBatchInfo {
@@ -550,7 +551,7 @@ static AjmInstanceState* AjmFindInstanceLocked(uint32_t instance) {
 }
 
 static uint8_t* AjmReserveJob(AjmBatchInfo* info, size_t job_size) {
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 
 	if (info->offset + job_size > info->size) {
 		return nullptr;
@@ -887,7 +888,7 @@ static AjmSidebandFormat AjmGetInstanceFormat(uint32_t          instance,
 int KYTY_SYSV_ABI AjmInitialize(int64_t reserved, uint32_t* context) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(context == nullptr);
+	CHECK(context == nullptr);
 	if (reserved != 0) {
 		LOGF("\t ignoring reserved = 0x%016" PRIx64 "\n", static_cast<uint64_t>(reserved));
 	}
@@ -941,7 +942,7 @@ int KYTY_SYSV_ABI AjmInstanceCreate(uint32_t context, uint32_t codec, uint64_t f
                                     uint32_t* instance) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(instance == nullptr);
+	CHECK(instance == nullptr);
 	const auto supported = AjmLogCodecSupport(codec);
 
 	const auto slot = (g_ajm_next_instance.fetch_add(1, std::memory_order_relaxed) & 0x3fffu);
@@ -997,8 +998,8 @@ int KYTY_SYSV_ABI AjmMemoryUnregister(uint32_t context, void* ptr) {
 int KYTY_SYSV_ABI AjmBatchInitialize(void* buffer, size_t size, AjmBatchInfo* info) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(buffer == nullptr);
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(buffer == nullptr);
+	CHECK(info == nullptr);
 
 	info->buffer           = buffer;
 	info->offset           = 0;
@@ -1013,8 +1014,8 @@ int KYTY_SYSV_ABI AjmBatchStart(uint32_t context, const AjmBatchInfo* info, int 
                                 AjmBatchError* error, uint32_t* batch) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
-	EXIT_NOT_IMPLEMENTED(batch == nullptr);
+	CHECK(info == nullptr);
+	CHECK(batch == nullptr);
 
 	(void)context;
 	(void)priority;
@@ -1060,7 +1061,7 @@ int KYTY_SYSV_ABI AjmBatchJobInitialize(AjmBatchInfo* info, uint32_t instance,
                                         const void* codec_parameters, size_t codec_parameters_size,
                                         void* result) {
 	PRINT_NAME();
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 
 	const auto decode_result =
 	    AjmInitializeInstance(instance, codec_parameters, codec_parameters_size);
@@ -1075,7 +1076,7 @@ int KYTY_SYSV_ABI AjmBatchJobInitialize(AjmBatchInfo* info, uint32_t instance,
 
 int KYTY_SYSV_ABI AjmBatchJobClearContext(AjmBatchInfo* info, uint32_t instance, void* result) {
 	PRINT_NAME();
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 
 	AjmDecodeResult decode_result {};
 	{
@@ -1099,7 +1100,7 @@ int KYTY_SYSV_ABI AjmBatchJobDecode(AjmBatchInfo* info, uint32_t instance,
                                     const void* bitstream_input, size_t bitstream_input_size,
                                     void* pcm_output, size_t pcm_output_size, void* result) {
 	PRINT_NAME();
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 
 	const auto decode_result = AjmDecodeInstance(instance, bitstream_input, bitstream_input_size,
 	                                             pcm_output, pcm_output_size, true);
@@ -1119,7 +1120,7 @@ int KYTY_SYSV_ABI AjmBatchJobDecodeSingle(AjmBatchInfo* info, uint32_t instance,
                                           const void* bitstream_input, size_t bitstream_input_size,
                                           void* pcm_output, size_t pcm_output_size, void* result) {
 	PRINT_NAME();
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 
 	const auto decode_result = AjmDecodeInstance(instance, bitstream_input, bitstream_input_size,
 	                                             pcm_output, pcm_output_size, false);
@@ -1135,7 +1136,7 @@ int KYTY_SYSV_ABI AjmBatchJobDecodeSplit(AjmBatchInfo* info, uint32_t instance,
                                          const AjmBuffer* output_buffers, size_t output_buffers_num,
                                          void* result) {
 	PRINT_NAME();
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 
 	const auto decode_result = AjmDecodeSplitInstance(instance, input_buffers, input_buffers_num,
 	                                                  output_buffers, output_buffers_num, true);
@@ -1156,7 +1157,7 @@ int KYTY_SYSV_ABI AjmBatchJobEncode(AjmBatchInfo* info, uint32_t instance, const
                                     size_t pcm_input_size, void* bitstream_output,
                                     size_t bitstream_output_size, void* result) {
 	PRINT_NAME();
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 
 	AjmDecodeResult encode_result {};
 	encode_result.input_consumed = pcm_input_size;
@@ -1178,7 +1179,7 @@ int KYTY_SYSV_ABI AjmBatchJobEncode(AjmBatchInfo* info, uint32_t instance, const
 
 int KYTY_SYSV_ABI AjmBatchJobGetInfo(AjmBatchInfo* info, uint32_t instance, void* result) {
 	PRINT_NAME();
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 
 	AjmDecodeResult decode_result {};
 	const auto      format = AjmGetInstanceFormat(instance, &decode_result);
@@ -1192,7 +1193,7 @@ int KYTY_SYSV_ABI AjmBatchJobGetInfo(AjmBatchInfo* info, uint32_t instance, void
 int KYTY_SYSV_ABI AjmBatchJobGetCodecInfo(AjmBatchInfo* info, uint32_t instance, void* result,
                                           size_t result_size) {
 	PRINT_NAME();
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 
 	AjmDecodeResult decode_result {};
 	AjmDecoder*     decoder = nullptr;
@@ -1208,7 +1209,7 @@ int KYTY_SYSV_ABI AjmBatchJobGetCodecInfo(AjmBatchInfo* info, uint32_t instance,
 int KYTY_SYSV_ABI AjmBatchJobSetGaplessDecode(AjmBatchInfo* info, uint32_t instance,
                                               const void* gapless_decode, int reset, void* result) {
 	PRINT_NAME();
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 	const auto decode_result = AjmSetGaplessDecode(instance, gapless_decode, reset);
 	AjmWriteResult(result, AJM_SIDEBAND_RESULT_SIZE, decode_result);
 	LOGF("\t instance = 0x%08" PRIx32 ", gapless_decode = 0x%016" PRIx64 ", reset = %d\n", instance,
@@ -1218,7 +1219,7 @@ int KYTY_SYSV_ABI AjmBatchJobSetGaplessDecode(AjmBatchInfo* info, uint32_t insta
 
 int KYTY_SYSV_ABI AjmBatchJobGetGaplessDecode(AjmBatchInfo* info, uint32_t instance, void* result) {
 	PRINT_NAME();
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 
 	AjmDecodeResult          decode_result {};
 	AjmSidebandGaplessDecode gapless_decode {};
@@ -1237,7 +1238,7 @@ int KYTY_SYSV_ABI AjmBatchJobGetGaplessDecode(AjmBatchInfo* info, uint32_t insta
 int KYTY_SYSV_ABI AjmBatchJobSetResampleParameters(AjmBatchInfo* info, uint32_t instance,
                                                    float ratio, uint32_t flags, void* result) {
 	PRINT_NAME();
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 	AjmWriteResult(result, AJM_SIDEBAND_RESULT_SIZE);
 	LOGF("\t instance = 0x%08" PRIx32 ", ratio = %f, flags = 0x%08" PRIx32 "\n", instance,
 	     static_cast<double>(ratio), flags);
@@ -1249,7 +1250,7 @@ int KYTY_SYSV_ABI AjmBatchJobSetResampleParametersEx(AjmBatchInfo* info, uint32_
                                                      float ratio_change_per_sample, uint32_t flags,
                                                      void* result) {
 	PRINT_NAME();
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 	AjmWriteResult(result, AJM_SIDEBAND_RESULT_SIZE);
 	LOGF("\t instance = 0x%08" PRIx32 ", ratio_start = %f, ratio_change = %f, flags = 0x%08" PRIx32
 	     "\n",
@@ -1260,7 +1261,7 @@ int KYTY_SYSV_ABI AjmBatchJobSetResampleParametersEx(AjmBatchInfo* info, uint32_
 
 int KYTY_SYSV_ABI AjmBatchJobGetResampleInfo(AjmBatchInfo* info, uint32_t instance, void* result) {
 	PRINT_NAME();
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 
 	AjmDecodeResult decode_result {};
 	(void)AjmGetInstanceFormat(instance, &decode_result);
@@ -1277,7 +1278,7 @@ int KYTY_SYSV_ABI AjmBatchJobGetResampleInfo(AjmBatchInfo* info, uint32_t instan
 
 int KYTY_SYSV_ABI AjmBatchJobGetStatistics(AjmBatchInfo* info, float interval, void* result) {
 	PRINT_NAME();
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 	AjmWriteResult(result, sizeof(AjmGetStatisticsResult));
 	(void)interval;
 	return AjmAppendJob(info, AJM_JOB_GET_STATISTICS_SIZE, "get-statistics");
@@ -1287,7 +1288,7 @@ int KYTY_SYSV_ABI AjmBatchJobControl(AjmBatchInfo* info, uint32_t instance, uint
                                      const void* sideband_input, size_t sideband_input_size,
                                      void* sideband_output, size_t sideband_output_size) {
 	PRINT_NAME();
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 
 	AjmDecoder*      decoder       = nullptr;
 	AjmGaplessState* gapless       = nullptr;
@@ -1309,7 +1310,7 @@ int KYTY_SYSV_ABI AjmBatchJobRun(AjmBatchInfo* info, uint32_t instance, uint64_t
                                  size_t data_output_size, void* sideband_output,
                                  size_t sideband_output_size) {
 	PRINT_NAME();
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 
 	auto decode_result =
 	    AjmDecodeInstance(instance, data_input, data_input_size, data_output, data_output_size,
@@ -1333,7 +1334,7 @@ int KYTY_SYSV_ABI AjmBatchJobRunSplit(AjmBatchInfo* info, uint32_t instance, uin
                                       const AjmBuffer* output_buffers, size_t output_buffers_num,
                                       void* sideband_output, size_t sideband_output_size) {
 	PRINT_NAME();
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 
 	auto decode_result =
 	    AjmDecodeSplitInstance(instance, input_buffers, input_buffers_num, output_buffers,

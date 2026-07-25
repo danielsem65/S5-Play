@@ -254,12 +254,12 @@ void Elf64::LoadSegment(uint64_t vaddr, uint64_t file_offset, uint64_t size) {
 				const auto& phdr = m_phdr[phdr_id];
 
 				if (file_offset >= phdr.p_offset && file_offset < phdr.p_offset + phdr.p_filesz) {
-					EXIT_NOT_IMPLEMENTED(seg.decompressed_size != phdr.p_filesz);
-					EXIT_NOT_IMPLEMENTED(seg.compressed_size != seg.decompressed_size);
+					CHECK(seg.decompressed_size != phdr.p_filesz);
+					CHECK(seg.compressed_size != seg.decompressed_size);
 
 					auto offset = file_offset - phdr.p_offset;
 
-					EXIT_NOT_IMPLEMENTED(offset + size > seg.decompressed_size);
+					CHECK(offset + size > seg.decompressed_size);
 
 					m_f->Seek(offset + seg.offset);
 					m_f->Read(reinterpret_cast<void*>(static_cast<uintptr_t>(vaddr)), size);
@@ -358,7 +358,7 @@ void Elf64::DbgDump(const std::string& folder) {
 
 		char str[512];
 		int  s = snprintf(str, 512, "phdr_%03d", i);
-		EXIT_NOT_IMPLEMENTED(s >= 512);
+		CHECK(s >= 512);
 
 		Common::File fout;
 		fout.Create(folder_str + str);
@@ -382,7 +382,7 @@ void Elf64::DbgDump(const std::string& folder) {
 
 		char str[512];
 		int  s = snprintf(str, 512, "shdr_%03d", i);
-		EXIT_NOT_IMPLEMENTED(s >= 512);
+		CHECK(s >= 512);
 
 		Common::File fout;
 		fout.Create(folder_str + str);

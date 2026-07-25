@@ -28,6 +28,7 @@
 #include <memory>
 #include <mutex>
 #include <span>
+
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -258,25 +259,25 @@ static void vs_check(const HW::VertexShaderInfo& vs, const HW::ShaderRegisters& 
 	    sh.m_vgtGsOutPrimType == 0x00000002 && sh.m_geMaxOutputPerSubgroup <= 0x000000c0;
 
 	if (vs.es_regs.data_addr != 0 || vs.gs_regs.data_addr != 0) {
-		EXIT_NOT_IMPLEMENTED(vs.gs_regs.rsrc1.priority != 0);
-		EXIT_NOT_IMPLEMENTED(vs.gs_regs.rsrc1.float_mode != 192);
-		EXIT_NOT_IMPLEMENTED(vs.gs_regs.rsrc1.dx10_clamp != true);
-		EXIT_NOT_IMPLEMENTED(vs.gs_regs.rsrc1.debug_mode != false);
-		EXIT_NOT_IMPLEMENTED(vs.gs_regs.rsrc1.ieee_mode != false);
-		EXIT_NOT_IMPLEMENTED(vs.gs_regs.rsrc1.cu_group_enable != false);
-		EXIT_NOT_IMPLEMENTED(vs.gs_regs.rsrc1.require_forward_progress != false);
-		EXIT_NOT_IMPLEMENTED(vs.gs_regs.rsrc1.lds_configuration != false);
-		EXIT_NOT_IMPLEMENTED(vs.gs_regs.rsrc1.gs_vgpr_component_count != 3);
-		EXIT_NOT_IMPLEMENTED(vs.gs_regs.rsrc1.fp16_overflow != false);
-		EXIT_NOT_IMPLEMENTED(vs.gs_regs.rsrc2.scratch_en != false);
-		EXIT_NOT_IMPLEMENTED(vs.gs_regs.rsrc2.offchip_lds != false);
-		EXIT_NOT_IMPLEMENTED(vs.gs_regs.rsrc2.es_vgpr_component_count != 3);
-		EXIT_NOT_IMPLEMENTED(vs.gs_regs.rsrc2.lds_size != 0);
-		EXIT_NOT_IMPLEMENTED(vs.gs_regs.rsrc2.shared_vgprs != 0);
+		CHECK(vs.gs_regs.rsrc1.priority == 0);
+		CHECK(vs.gs_regs.rsrc1.float_mode == 192);
+		CHECK(vs.gs_regs.rsrc1.dx10_clamp == true);
+		CHECK(vs.gs_regs.rsrc1.debug_mode == false);
+		CHECK(vs.gs_regs.rsrc1.ieee_mode == false);
+		CHECK(vs.gs_regs.rsrc1.cu_group_enable == false);
+		CHECK(vs.gs_regs.rsrc1.require_forward_progress == false);
+		CHECK(vs.gs_regs.rsrc1.lds_configuration == false);
+		CHECK(vs.gs_regs.rsrc1.gs_vgpr_component_count == 3);
+		CHECK(vs.gs_regs.rsrc1.fp16_overflow == false);
+		CHECK(vs.gs_regs.rsrc2.scratch_en == false);
+		CHECK(vs.gs_regs.rsrc2.offchip_lds == false);
+		CHECK(vs.gs_regs.rsrc2.es_vgpr_component_count == 3);
+		CHECK(vs.gs_regs.rsrc2.lds_size == 0);
+		CHECK(vs.gs_regs.rsrc2.shared_vgprs == 0);
 	}
 
 	for (uint32_t value = sh.m_spiShaderPosFormat; value != 0; value >>= 4u) {
-		EXIT_NOT_IMPLEMENTED((value & 0xfu) != 0 && (value & 0xfu) != 0x4u);
+		CHECK((value & 0xfu) == 0 || (value & 0xfu) == 0x4u);
 	}
 	if (sh.m_paClVsOutCntl != 0x00000000) {
 		static bool logged = false;
@@ -287,19 +288,16 @@ static void vs_check(const HW::VertexShaderInfo& vs, const HW::ShaderRegisters& 
 		}
 	}
 
-	EXIT_NOT_IMPLEMENTED(sh.m_spiShaderIdxFormat != 0x00000000 &&
-	                     sh.m_spiShaderIdxFormat != 0x00000001);
-	EXIT_NOT_IMPLEMENTED(sh.m_geNggSubgrpCntl != 0x00000000 && sh.m_geNggSubgrpCntl != 0x00000001);
-	EXIT_NOT_IMPLEMENTED(sh.m_vgtGsInstanceCnt != 0x00000000);
-	EXIT_NOT_IMPLEMENTED(!is_zero_or_wave64_subgroup(sh.GetEsVertsPerSubgrp()));
-	EXIT_NOT_IMPLEMENTED(!is_zero_or_wave64_subgroup(sh.GetGsPrimsPerSubgrp()));
-	EXIT_NOT_IMPLEMENTED(!is_zero_or_wave64_subgroup(sh.GetGsInstPrimsInSubgrp()));
-	EXIT_NOT_IMPLEMENTED(!is_zero_or_wave64_subgroup(sh.m_geMaxOutputPerSubgroup) &&
-	                     !ps5_ngg_passthrough_triangle_path);
-	EXIT_NOT_IMPLEMENTED(sh.m_vgtEsgsRingItemsize != 0x00000000 &&
-	                     sh.m_vgtEsgsRingItemsize != 0x00000004);
-	EXIT_NOT_IMPLEMENTED(sh.m_vgtGsMaxVertOut != 0x00000000 && !ps5_ngg_passthrough_triangle_path);
-	EXIT_NOT_IMPLEMENTED(!is_known_gs_out_prim_type(sh.m_vgtGsOutPrimType));
+	CHECK(sh.m_spiShaderIdxFormat == 0x00000000 || sh.m_spiShaderIdxFormat == 0x00000001);
+	CHECK(sh.m_geNggSubgrpCntl == 0x00000000 || sh.m_geNggSubgrpCntl == 0x00000001);
+	CHECK(sh.m_vgtGsInstanceCnt == 0x00000000);
+	CHECK(is_zero_or_wave64_subgroup(sh.GetEsVertsPerSubgrp()));
+	CHECK(is_zero_or_wave64_subgroup(sh.GetGsPrimsPerSubgrp()));
+	CHECK(is_zero_or_wave64_subgroup(sh.GetGsInstPrimsInSubgrp()));
+	CHECK(!is_zero_or_wave64_subgroup(sh.m_geMaxOutputPerSubgroup) || ps5_ngg_passthrough_triangle_path);
+	CHECK(sh.m_vgtEsgsRingItemsize == 0x00000000 || sh.m_vgtEsgsRingItemsize == 0x00000004);
+	CHECK(sh.m_vgtGsMaxVertOut == 0x00000000 || ps5_ngg_passthrough_triangle_path);
+	CHECK(is_known_gs_out_prim_type(sh.m_vgtGsOutPrimType));
 }
 
 static void ps_check(const HW::PsStageRegisters& ps, const HW::ShaderRegisters& sh) {
@@ -310,26 +308,25 @@ static void ps_check(const HW::PsStageRegisters& ps, const HW::ShaderRegisters& 
 		     "sh.target_output_mode[0] != 4 && sh.target_output_mode[0] != 5 && "
 		     "sh.target_output_mode[0] != 7 && sh.target_output_mode[0] != 9)\n");
 	}
-	EXIT_NOT_IMPLEMENTED(sh.db_shader_control.conservative_z_export_value != 0x00000000);
-	EXIT_NOT_IMPLEMENTED(sh.db_shader_control.shader_z_behavior != 0x00000001 &&
-	                     sh.db_shader_control.shader_z_behavior != 0x00000000);
-	// EXIT_NOT_IMPLEMENTED(ps.shader_kill_enable != false);
-	// EXIT_NOT_IMPLEMENTED(ps.shader_execute_on_noop != false);
-	// EXIT_NOT_IMPLEMENTED(ps.m_spiShaderPgmRsrc1Ps != 0x002c0000);
-	// EXIT_NOT_IMPLEMENTED(ps.m_spiShaderPgmRsrc2Ps != 0x00000000);
-	// EXIT_NOT_IMPLEMENTED(ps.vgprs != 0x00 && ps.vgprs != 0x01);
-	// EXIT_NOT_IMPLEMENTED(ps.sgprs != 0x00 && ps.sgprs != 0x01);
-	EXIT_NOT_IMPLEMENTED(ps.rsrc1.priority != 0);
-	EXIT_NOT_IMPLEMENTED(ps.rsrc1.float_mode != 192);
-	EXIT_NOT_IMPLEMENTED(ps.rsrc1.dx10_clamp != true);
-	EXIT_NOT_IMPLEMENTED(ps.rsrc1.debug_mode != false);
-	EXIT_NOT_IMPLEMENTED(ps.rsrc1.ieee_mode != false);
-	EXIT_NOT_IMPLEMENTED(ps.rsrc1.cu_group_disable != false);
-	EXIT_NOT_IMPLEMENTED(ps.rsrc1.require_forward_progress != false);
-	EXIT_NOT_IMPLEMENTED(ps.rsrc1.fp16_overflow != false);
-	EXIT_NOT_IMPLEMENTED(ps.rsrc2.scratch_en != false);
-	// EXIT_NOT_IMPLEMENTED(ps.user_sgpr != 0 && ps.user_sgpr != 4 && ps.user_sgpr != 12);
-	EXIT_NOT_IMPLEMENTED(ps.rsrc2.wave_cnt_en != false);
+	CHECK(sh.db_shader_control.conservative_z_export_value == 0x00000000);
+	CHECK(sh.db_shader_control.shader_z_behavior == 0x00000001 ||
+	      sh.db_shader_control.shader_z_behavior == 0x00000000);
+	// CHECK(ps.shader_kill_enable != false);
+	// CHECK(ps.shader_execute_on_noop != false);
+	// CHECK(ps.m_spiShaderPgmRsrc1Ps != 0x002c0000);
+	// CHECK(ps.m_spiShaderPgmRsrc2Ps != 0x00000000);
+	// CHECK(ps.vgprs != 0x00 && ps.vgprs != 0x01);
+	// CHECK(ps.sgprs != 0x00 && ps.sgprs != 0x01);
+	CHECK(ps.rsrc1.priority == 0);
+	CHECK(ps.rsrc1.float_mode == 192);
+	CHECK(ps.rsrc1.dx10_clamp == true);
+	CHECK(ps.rsrc1.debug_mode == false);
+	CHECK(ps.rsrc1.ieee_mode == false);
+	CHECK(ps.rsrc1.cu_group_disable == false);
+	CHECK(ps.rsrc1.require_forward_progress == false);
+	CHECK(ps.rsrc1.fp16_overflow == false);
+	CHECK(ps.rsrc2.scratch_en == false);
+	CHECK(ps.rsrc2.wave_cnt_en == false);
 	if (ps.rsrc2.extra_lds_size != 0) {
 		static std::atomic_uint log_count {0};
 		if (log_count.fetch_add(1, std::memory_order_relaxed) < 32) {
@@ -337,8 +334,8 @@ static void ps_check(const HW::PsStageRegisters& ps, const HW::ShaderRegisters& 
 			     ps.rsrc2.extra_lds_size);
 		}
 	}
-	EXIT_NOT_IMPLEMENTED(ps.rsrc2.raster_ordered_shading != false);
-	EXIT_NOT_IMPLEMENTED(ps.rsrc2.shared_vgprs != 0);
+	CHECK(ps.rsrc2.raster_ordered_shading == false);
+	CHECK(ps.rsrc2.shared_vgprs == 0);
 
 	if (sh.shader_z_format != 0x00000000 && sh.shader_z_format != 0x00000001 &&
 	    !sh.db_shader_control.shader_z_export_enable) {
@@ -349,23 +346,23 @@ static void ps_check(const HW::PsStageRegisters& ps, const HW::ShaderRegisters& 
 			     sh.shader_z_format);
 		}
 	}
-	EXIT_NOT_IMPLEMENTED(sh.db_shader_control.shader_z_export_enable &&
-	                     sh.shader_z_format != 0x00000000 && sh.shader_z_format != 0x00000001);
+	CHECK(!sh.db_shader_control.shader_z_export_enable || sh.shader_z_format == 0x00000000 ||
+	      sh.shader_z_format == 0x00000001);
 	constexpr uint32_t ps_input_linear_center = 0x00000020u;
 	constexpr uint32_t ps_input_pos_w         = 0x00000800u;
 	constexpr uint32_t ps_input_front_face    = 0x00001000u;
 	constexpr uint32_t supported_ps_input_bits =
 	    0x00000702u | ps_input_linear_center | ps_input_pos_w | ps_input_front_face;
-	EXIT_NOT_IMPLEMENTED((sh.ps_input_ena & ~supported_ps_input_bits) != 0);
-	EXIT_NOT_IMPLEMENTED((sh.ps_input_addr & ~supported_ps_input_bits) != 0);
-	EXIT_NOT_IMPLEMENTED(sh.ps_input_ena != sh.ps_input_addr);
-	// EXIT_NOT_IMPLEMENTED(ps.m_spiPsInControl != 0x00000000);
+	CHECK((sh.ps_input_ena & ~supported_ps_input_bits) == 0);
+	CHECK((sh.ps_input_addr & ~supported_ps_input_bits) == 0);
+	CHECK(sh.ps_input_ena == sh.ps_input_addr);
+	// CHECK(ps.m_spiPsInControl != 0x00000000);
 	constexpr uint32_t baryc_persp_mask =
 	    0x00000003u | 0x00000030u | 0x00000300u | 0x00003000u;
 	constexpr uint32_t baryc_linear_mask = 0x00030000u | 0x00300000u | 0x03000000u;
 	constexpr uint32_t baryc_known_mask  = baryc_persp_mask | baryc_linear_mask;
-	EXIT_NOT_IMPLEMENTED((sh.baryc_cntl & ~baryc_known_mask) != 0);
-	EXIT_NOT_IMPLEMENTED((sh.baryc_cntl & baryc_persp_mask) != 0);
+	CHECK((sh.baryc_cntl & ~baryc_known_mask) == 0);
+	CHECK((sh.baryc_cntl & baryc_persp_mask) == 0);
 	if ((sh.ps_input_ena & ps_input_linear_center) == 0 && (sh.baryc_cntl & baryc_linear_mask) != 0) {
 		static std::atomic_uint log_count {0};
 		if (log_count.fetch_add(1, std::memory_order_relaxed) < 32) {
@@ -373,8 +370,8 @@ static void ps_check(const HW::PsStageRegisters& ps, const HW::ShaderRegisters& 
 			     sh.baryc_cntl & baryc_linear_mask);
 		}
 	} else {
-		EXIT_NOT_IMPLEMENTED((sh.baryc_cntl & baryc_linear_mask) != 0x00000000 &&
-		                     (sh.baryc_cntl & baryc_linear_mask) != 0x01000000);
+		CHECK((sh.baryc_cntl & baryc_linear_mask) == 0x00000000 ||
+		      (sh.baryc_cntl & baryc_linear_mask) == 0x01000000);
 	}
 	if ((sh.m_cbShaderMask & 0x0000000f) != 0x0000000f) {
 		static bool logged = false;
@@ -400,18 +397,18 @@ static void ps_check(const HW::PsStageRegisters& ps, const HW::ShaderRegisters& 
 			     sh.db_shader_control.other_bits);
 		}
 	}
-	EXIT_NOT_IMPLEMENTED(sh.m_paScShaderControl != 0x00000000);
+	CHECK(sh.m_paScShaderControl == 0x00000000);
 }
 
 static void cs_check(const HW::CsStageRegisters& cs, const HW::ShaderRegisters& /*sh*/) {
-	// EXIT_NOT_IMPLEMENTED(cs.num_thread_x != 0x00000040);
-	// EXIT_NOT_IMPLEMENTED(cs.num_thread_y != 0x00000001);
-	// EXIT_NOT_IMPLEMENTED(cs.num_thread_z != 0x00000001);
-	// EXIT_NOT_IMPLEMENTED(cs.vgprs != 0x00 && cs.vgprs != 0x01);
-	// EXIT_NOT_IMPLEMENTED(cs.sgprs != 0x01 && cs.sgprs != 0x02);
-	EXIT_NOT_IMPLEMENTED(cs.bulky != 0x00);
-	EXIT_NOT_IMPLEMENTED(cs.scratch_en != 0x00);
-	// EXIT_NOT_IMPLEMENTED(cs.user_sgpr != 0x0c);
+	// CHECK(cs.num_thread_x != 0x00000040);
+	// CHECK(cs.num_thread_y != 0x00000001);
+	// CHECK(cs.num_thread_z != 0x00000001);
+	// CHECK(cs.vgprs != 0x00 && cs.vgprs != 0x01);
+	// CHECK(cs.sgprs != 0x01 && cs.sgprs != 0x02);
+	CHECK(cs.bulky == 0x00);
+	CHECK(cs.scratch_en == 0x00);
+	// CHECK(cs.user_sgpr != 0x0c);
 	if (cs.tgid_x_en == 0x00) {
 		static bool logged = false;
 		if (!logged) {
@@ -419,18 +416,18 @@ static void cs_check(const HW::CsStageRegisters& cs, const HW::ShaderRegisters& 
 			logged = true;
 		}
 	} else {
-		EXIT_NOT_IMPLEMENTED(cs.tgid_x_en != 0x01);
+		CHECK(cs.tgid_x_en == 0x01);
 	}
-	// EXIT_NOT_IMPLEMENTED(cs.tgid_y_en != 0x00);
-	// EXIT_NOT_IMPLEMENTED(cs.tgid_z_en != 0x00);
-	EXIT_NOT_IMPLEMENTED(cs.tg_size_en != 0x00);
-	EXIT_NOT_IMPLEMENTED(cs.tidig_comp_cnt > 2);
+	// CHECK(cs.tgid_y_en != 0x00);
+	// CHECK(cs.tgid_z_en != 0x00);
+	CHECK(cs.tg_size_en == 0x00);
+	CHECK(cs.tidig_comp_cnt <= 2);
 
-	//	EXIT_NOT_IMPLEMENTED(cs.m_computePgmRsrc1 != 0x002c0040);
-	//	EXIT_NOT_IMPLEMENTED(cs.m_computePgmRsrc2 != 0x00000098);
-	//	EXIT_NOT_IMPLEMENTED(cs.m_computeNumThreadX != 0x00000040);
-	//	EXIT_NOT_IMPLEMENTED(cs.m_computeNumThreadY != 0x00000001);
-	//	EXIT_NOT_IMPLEMENTED(cs.m_computeNumThreadZ != 0x00000001);
+	//	CHECK(cs.m_computePgmRsrc1 != 0x002c0040);
+	//	CHECK(cs.m_computePgmRsrc2 != 0x00000098);
+	//	CHECK(cs.m_computeNumThreadX != 0x00000040);
+	//	CHECK(cs.m_computeNumThreadY != 0x00000001);
+	//	CHECK(cs.m_computeNumThreadZ != 0x00000001);
 }
 #endif
 
@@ -468,9 +465,9 @@ static void ShaderDetectBuffers(ShaderVertexInputInfo& info) {
 				uint64_t offset2 = b.addr - base;
 
 				if (offset1 < stride && offset2 < stride) {
-					EXIT_NOT_IMPLEMENTED(b.num_records != r.NumRecords());
+					CHECK(b.num_records != r.NumRecords());
 					b.addr = base;
-					EXIT_NOT_IMPLEMENTED(b.attr_num >= ShaderVertexInputBuffer::ATTR_MAX);
+					CHECK(b.attr_num >= ShaderVertexInputBuffer::ATTR_MAX);
 					b.attr_indices[b.attr_num++] = ri;
 					merged                       = true;
 					break;
@@ -479,7 +476,7 @@ static void ShaderDetectBuffers(ShaderVertexInputInfo& info) {
 		}
 
 		if (!merged) {
-			EXIT_NOT_IMPLEMENTED(info.buffers_num >= ShaderVertexInputInfo::RES_MAX);
+			CHECK(info.buffers_num >= ShaderVertexInputInfo::RES_MAX);
 			int bi                           = info.buffers_num++;
 			info.buffers[bi].addr            = r.Base48();
 			info.buffers[bi].stride          = r.Stride();
@@ -615,7 +612,7 @@ static void ShaderApplyAttribSemantics(ShaderVertexInputInfo& info,
 	for (uint32_t i = 0; i < num_input_semantics; i++) {
 		const auto& in = input_semantics[i];
 
-		EXIT_NOT_IMPLEMENTED(in.static_vb_index == 1 || in.static_attribute == 1);
+		CHECK(in.static_vb_index != 1 && in.static_attribute != 1);
 
 		uint32_t reg  = in.hardware_mapping;
 		uint32_t size = in.size_in_elements;
@@ -637,11 +634,11 @@ static void ShaderApplyAttribSemantics(ShaderVertexInputInfo& info,
 			}
 		}
 
-		EXIT_NOT_IMPLEMENTED(index >= ShaderVertexInputInfo::RES_MAX);
+		CHECK(index >= ShaderVertexInputInfo::RES_MAX);
 
 		const auto* sharp = &buffer[index * 4];
 
-		EXIT_NOT_IMPLEMENTED(info.resources_num >= ShaderVertexInputInfo::RES_MAX);
+		CHECK(info.resources_num >= ShaderVertexInputInfo::RES_MAX);
 
 		auto& r           = info.resources[info.resources_num];
 		auto& rd          = info.resources_dst[info.resources_num];
@@ -696,9 +693,9 @@ static uint32_t ShaderCalcPsSystemInputBase(const HW::ShaderRegisters& regs) {
 	    ps_input_pos_w | ps_input_front_face | ps_input_ancillary | ps_input_sample_coverage |
 	    ps_input_pos_fixed_pt;
 
-	EXIT_NOT_IMPLEMENTED((regs.ps_input_ena & ~supported_ps_input_bits) != 0);
-	EXIT_NOT_IMPLEMENTED((regs.ps_input_addr & ~supported_ps_input_bits) != 0);
-	EXIT_NOT_IMPLEMENTED(regs.ps_input_ena != regs.ps_input_addr);
+	CHECK((regs.ps_input_ena & ~supported_ps_input_bits) == 0);
+	CHECK((regs.ps_input_addr & ~supported_ps_input_bits) == 0);
+	CHECK(regs.ps_input_ena == regs.ps_input_addr);
 
 	const uint32_t inputs = regs.ps_input_addr;
 	uint32_t       reg    = 0;
@@ -737,7 +734,7 @@ static bool ShaderGetStaticInputInfoVS(const HW::VertexShaderInfo& regs,
 
 	info.export_count = static_cast<int>(sh.GetExportCount());
 
-	EXIT_NOT_IMPLEMENTED(regs.es_regs.data_addr == 0 || regs.gs_regs.chksum == 0);
+	CHECK(regs.es_regs.data_addr == 0 || regs.gs_regs.chksum == 0);
 
 	uint64_t                shader_addr   = regs.es_regs.data_addr;
 	const HW::UserSgprInfo& user_sgpr     = regs.gs_user_sgpr;
@@ -1370,7 +1367,7 @@ bool ShaderCompileSpirvVS(const HW::VertexShaderInfo& regs, const HW::ShaderRegi
                           std::vector<uint32_t>& spirv) {
 	KYTY_PROFILER_FUNCTION(profiler::colors::Amber300);
 
-	EXIT_NOT_IMPLEMENTED(regs.es_regs.data_addr == 0 || regs.gs_regs.chksum == 0);
+	CHECK(regs.es_regs.data_addr == 0 || regs.gs_regs.chksum == 0);
 
 	const uint64_t shader_addr = regs.es_regs.data_addr;
 	const auto code = ShaderGetMappedCode(shader_addr, "ShaderRecompiler VS", regs.gs_regs.chksum);
@@ -1530,7 +1527,7 @@ ShaderId ShaderGetIdVS(const HW::VertexShaderInfo& regs, const ShaderVertexInput
 
 	ret.ids.reserve(64);
 
-	EXIT_NOT_IMPLEMENTED(regs.es_regs.data_addr == 0 || regs.gs_regs.chksum == 0);
+	CHECK(regs.es_regs.data_addr == 0 || regs.gs_regs.chksum == 0);
 
 	ret.hash0 = (regs.gs_regs.chksum >> 32u) & 0xffffffffu;
 	ret.crc32 = regs.gs_regs.chksum & 0xffffffffu;
@@ -1632,7 +1629,7 @@ ShaderId ShaderGetIdCS(const HW::ComputeShaderInfo& regs, const ShaderComputeInp
                        bool include_bind_specialization) {
 	const auto* src = reinterpret_cast<const uint32_t*>(regs.cs_regs.data_addr);
 
-	EXIT_NOT_IMPLEMENTED(src == nullptr);
+	CHECK(src == nullptr);
 
 	const auto* header = GetBinaryInfo(src);
 

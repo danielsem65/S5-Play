@@ -398,7 +398,7 @@ void UploadVideoOut(VideoOutVulkanImage& image, const VideoOutInfo& info, bool r
 	}
 	Transfer::ScratchBuffer scratch(info.size);
 	TileBlockLayout         block {};
-	EXIT_NOT_IMPLEMENTED(
+	CHECK(
 	    !TileGetBlockLayout(TileBlockFamily::RenderTarget64KB, info.bytes_per_element, block));
 	const GpuTileInfo tile_info {block.family,
 	                             block.bytes_per_element,

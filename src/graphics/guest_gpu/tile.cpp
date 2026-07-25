@@ -36,7 +36,7 @@ static uint32_t CalcLinearAlignedLevelPitch(uint32_t base_width, uint32_t base_h
 	    AlignUp(std::max(level_width, 1u), CalcLinearBlockWidth(bytes_per_element));
 	const uint64_t size =
 	    static_cast<uint64_t>(padded_width) * std::max(level_height, 1u) * bytes_per_element;
-	EXIT_NOT_IMPLEMENTED(size > 0xffffffffull);
+	CHECK(size > 0xffffffffull);
 	*padded_height = std::max(level_height, 1u);
 	*level_size    = static_cast<uint32_t>(size);
 	return padded_width;
@@ -1579,11 +1579,11 @@ void TileGetTextureSize(uint32_t format, uint32_t width, uint32_t height, uint32
 void TileGetTextureTotalSize(uint32_t format, uint32_t width, uint32_t height, uint32_t depth,
                              uint32_t pitch, uint32_t levels, uint32_t tile, bool volume_texture,
 	                         TileSizeAlign& total_size) {
-	EXIT_NOT_IMPLEMENTED(depth == 0);
+	CHECK(depth == 0);
 	if (volume_texture) {
 		TileVolumeLayout volume {};
 		if (TileGetTextureVolumeLayout(format, width, height, depth, levels, tile, volume)) {
-			EXIT_NOT_IMPLEMENTED(volume.total_size > UINT32_MAX);
+			CHECK(volume.total_size > UINT32_MAX);
 			total_size.size  = static_cast<uint32_t>(volume.total_size);
 			total_size.align = tile == 5 ? 4096u : 65536u;
 			return;
@@ -1594,7 +1594,7 @@ void TileGetTextureTotalSize(uint32_t format, uint32_t width, uint32_t height, u
 	TileGetTextureSize(format, width, height, pitch, levels, tile, &slice_size, nullptr, nullptr);
 	total_size           = slice_size;
 	const uint64_t total = static_cast<uint64_t>(slice_size.size) * depth;
-	EXIT_NOT_IMPLEMENTED(total > 0xffffffffull);
+	CHECK(total > 0xffffffffull);
 	total_size.size = static_cast<uint32_t>(total);
 }
 
@@ -1606,7 +1606,7 @@ uint32_t TileGetTexturePitch(uint32_t format, uint32_t width, uint32_t levels, u
 		    bytes_per_element != 0) {
 			uint32_t block_width  = 0;
 			uint32_t block_height = 0;
-			EXIT_NOT_IMPLEMENTED(!Gen5Thin64KBBlockSizeFromElementBytes(
+			CHECK(!Gen5Thin64KBBlockSizeFromElementBytes(
 			    bytes_per_element, &block_width, &block_height));
 			pitch = AlignUp(pitch, block_width);
 		}

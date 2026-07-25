@@ -39,6 +39,12 @@ struct PadVibrationParam {
 	uint8_t small_motor;
 };
 
+struct PadLightBarParam {
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
+};
+
 struct ControllerState {
 	uint64_t time                                  = 0;
 	uint32_t buttons                               = 0;
@@ -84,6 +90,9 @@ private:
 };
 
 static GameController* g_controller = nullptr;
+static PadVibrationParam g_vibration{};
+static PadLightBarParam g_light_bar{};
+static bool g_motion_sensor_enabled = false;
 
 static constexpr int KEYBOARD_CONTROLLER_ID = -1000;
 
@@ -388,6 +397,8 @@ int KYTY_SYSV_ABI PadSetMotionSensorState(int handle, bool enable) {
 
 	LOGF("\t enable = %s\n", (enable ? "true" : "false"));
 
+	g_motion_sensor_enabled = enable;
+
 	return OK;
 }
 
@@ -471,7 +482,7 @@ int KYTY_SYSV_ABI PadReadState(int handle, PadData* data) {
 int KYTY_SYSV_ABI PadRead(int handle, PadData* data, int num) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(num < 1 || num > 64);
+	CHECK(num < 1 || num > 64);
 	if (handle != 1) {
 		return PAD_ERROR_INVALID_HANDLE;
 	}
@@ -517,6 +528,8 @@ int KYTY_SYSV_ABI PadSetVibration(int handle, const PadVibrationParam* param) {
 	     "\t small_motor = %d\n",
 	     static_cast<int>(param->large_motor), static_cast<int>(param->small_motor));
 
+	g_vibration = *param;
+
 	return OK;
 }
 
@@ -526,6 +539,8 @@ int KYTY_SYSV_ABI PadResetLightBar(int handle) {
 	if (handle != 1) {
 		return PAD_ERROR_INVALID_HANDLE;
 	}
+
+	g_light_bar = PadLightBarParam{0, 0, 255};
 
 	return OK;
 }
@@ -539,6 +554,11 @@ int KYTY_SYSV_ABI PadSetLightBar(int handle, const PadLightBarParam* param) {
 	if (param == nullptr) {
 		return PAD_ERROR_INVALID_ARG;
 	}
+
+	LOGF("\t r = %d, g = %d, b = %d\n", static_cast<int>(param->r),
+	     static_cast<int>(param->g), static_cast<int>(param->b));
+
+	g_light_bar = *param;
 
 	return OK;
 }

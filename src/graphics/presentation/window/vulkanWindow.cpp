@@ -55,6 +55,7 @@
 
 namespace Libs::Graphics {
 
+
 struct VulkanExtensions {
 	bool enable_validation_layers = false;
 
@@ -88,14 +89,14 @@ void VulkanGetSurfaceCapabilities(vk::PhysicalDevice physical_device, vk::Surfac
 	    "vkGetPhysicalDeviceSurfaceFormatsKHR", [&](uint32_t* count, vk::SurfaceFormatKHR* values) {
 		    return physical_device.getSurfaceFormatsKHR(surface, count, values);
 	    });
-	EXIT_NOT_IMPLEMENTED(r.formats.empty());
+	CHECK(r.formats.empty());
 
 	r.present_modes = EnumerateVulkan<vk::PresentModeKHR>( // @suppress("Ambiguous problem")
 	    "vkGetPhysicalDeviceSurfacePresentModesKHR",
 	    [&](uint32_t* count, vk::PresentModeKHR* values) {
 		    return physical_device.getSurfacePresentModesKHR(surface, count, values);
 	    });
-	EXIT_NOT_IMPLEMENTED(r.present_modes.empty());
+	CHECK(r.present_modes.empty());
 
 	r.format_srgb_bgra32  = false;
 	r.format_unorm_bgra32 = false;
@@ -164,7 +165,7 @@ static void VulkanFindPhysicalDevice(vk::Instance instance, vk::SurfaceKHR surfa
 	    "vkEnumeratePhysicalDevices", [&](uint32_t* count, vk::PhysicalDevice* values) {
 		    return instance.enumeratePhysicalDevices(count, values);
 	    });
-	EXIT_NOT_IMPLEMENTED(devices.empty());
+	CHECK(devices.empty());
 
 	vk::PhysicalDevice  best_device       = nullptr;
 	uint32_t            best_queue_family = static_cast<uint32_t>(-1);
@@ -290,7 +291,7 @@ static void VulkanFindPhysicalDevice(vk::Instance instance, vk::SurfaceKHR surfa
 			    [&](uint32_t* count, vk::ExtensionProperties* values) {
 				    return device.enumerateDeviceExtensionProperties(nullptr, count, values);
 			    });
-			EXIT_NOT_IMPLEMENTED(available_extensions.empty());
+			CHECK(available_extensions.empty());
 
 			for (const char* ext: device_extensions) {
 				if (!HasExtension(available_extensions, ext)) {
@@ -594,8 +595,8 @@ static void VulkanGetExtensions(SDL_Window* window, VulkanExtensions& r) {
 
 	auto sdl_result = SDL_Vulkan_GetInstanceExtensions(window, &required_extensions_count, nullptr);
 
-	EXIT_NOT_IMPLEMENTED(sdl_result == SDL_FALSE);
-	EXIT_NOT_IMPLEMENTED(required_extensions_count == 0);
+	CHECK(sdl_result == SDL_FALSE);
+	CHECK(required_extensions_count == 0);
 
 	r.required_extensions =
 	    std::vector<const char*>(required_extensions_count); // @suppress("Ambiguous problem")
@@ -605,9 +606,9 @@ static void VulkanGetExtensions(SDL_Window* window, VulkanExtensions& r) {
 	sdl_result = SDL_Vulkan_GetInstanceExtensions(window, &required_extensions_count,
 	                                              r.required_extensions.data());
 
-	EXIT_NOT_IMPLEMENTED(sdl_result == SDL_FALSE);
-	EXIT_NOT_IMPLEMENTED(required_extensions_count == 0);
-	EXIT_NOT_IMPLEMENTED(required_extensions_count != r.required_extensions.size());
+	CHECK(sdl_result == SDL_FALSE);
+	CHECK(required_extensions_count == 0);
+	CHECK(required_extensions_count != r.required_extensions.size());
 
 	r.available_extensions =
 	    EnumerateVulkan<vk::ExtensionProperties>( // @suppress("Ambiguous problem")

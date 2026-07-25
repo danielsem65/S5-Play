@@ -110,8 +110,8 @@ void DumpPm4PacketStream(Common::File* file, uint32_t* cmd_buffer, uint32_t star
 	auto* cmd = cmd_buffer + start_dw;
 	auto  dw  = num_dw;
 	while (dw != 0) {
-		EXIT_NOT_IMPLEMENTED(dw < 2);
-		EXIT_NOT_IMPLEMENTED(dw > num_dw);
+		CHECK(dw < 2);
+		CHECK(dw > num_dw);
 
 		auto cmd_id = *cmd++;
 
@@ -127,7 +127,7 @@ void DumpPm4PacketStream(Common::File* file, uint32_t* cmd_buffer, uint32_t star
 				const auto    r     = KYTY_PM4_R(cmd_id);
 				len                 = ((cmd_id >> 16u) & 0x3fffu) + 1;
 
-				EXIT_NOT_IMPLEMENTED(len >= dw);
+				CHECK(len >= dw);
 
 				file->Printf("%s %s(OP:0x%02" PRIx8 ") SH:%s CNT:%u\n", g_opcode_names[op],
 				             (op == IT_NOP ? g_register_names[r] : ""), op, sh_gx ? "GX" : "CX",

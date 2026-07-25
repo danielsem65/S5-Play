@@ -292,7 +292,7 @@ void ResolveRenderColorTarget(uint64_t submit_id, RenderCommandBuffer& buffer, R
 		     type == Prospero::ChannelType::kFloat &&
 		     (order == Prospero::ChannelOrder::kStandard || order == Prospero::ChannelOrder::kAlt));
 
-		EXIT_NOT_IMPLEMENTED(!supported_display_format);
+		CHECK(!supported_display_format);
 
 		// Display buffer
 		if (video_image.size != size) {
@@ -300,8 +300,8 @@ void ResolveRenderColorTarget(uint64_t submit_id, RenderCommandBuffer& buffer, R
 			     "video_size=0x%016" PRIx64 " render_size=0x%016" PRIx64 "\n",
 			     video_image.size, size);
 		}
-		EXIT_NOT_IMPLEMENTED(video_image.size < size);
-		EXIT_NOT_IMPLEMENTED(video_image.pitch != pitch);
+		CHECK(video_image.size < size);
+		CHECK(video_image.pitch != pitch);
 		r.type           = RenderColorType::DisplayBuffer;
 		r.base_addr      = rt.base.addr;
 		r.vulkan_buffer  = video_image.image;

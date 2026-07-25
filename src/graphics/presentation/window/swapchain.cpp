@@ -192,7 +192,7 @@ VulkanSwapchain::~VulkanSwapchain() = default;
 	EXIT_IF(device == nullptr);
 	EXIT_IF(surface == nullptr);
 
-	EXIT_NOT_IMPLEMENTED(r.formats.empty());
+	CHECK(r.formats.empty());
 
 	vk::Extent2D extent {};
 	extent.width =
@@ -246,7 +246,7 @@ VulkanSwapchain::~VulkanSwapchain() = default;
 	    "vkGetSwapchainImagesKHR", [&](uint32_t* count, vk::Image* values) {
 		    return device.getSwapchainImagesKHR(swapchain, count, values);
 	    });
-	EXIT_NOT_IMPLEMENTED(images.empty());
+	CHECK(images.empty());
 
 	swapchain_images_count = static_cast<uint32_t>(images.size());
 	swapchain_images       = std::make_unique<vk::Image[]>(images.size());
@@ -311,11 +311,11 @@ VulkanSwapchain* VulkanCreateSwapchain(uint32_t image_count) {
 	for (uint32_t i = 0; i < s->swapchain_images_count; i++) {
 		auto result = graphics.device.createSemaphore(&semaphore_info, nullptr,
 		                                              &s->image_acquired_semaphores[i]);
-		EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+		CHECK(result != vk::Result::eSuccess);
 
 		result = graphics.device.createSemaphore(&semaphore_info, nullptr,
 		                                         &s->render_complete_semaphores[i]);
-		EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+		CHECK(result != vk::Result::eSuccess);
 	}
 	GetPreparedFramePool()->EnsureCapacity(s->swapchain_images_count, s->swapchain_format);
 
@@ -452,7 +452,7 @@ void WindowPresentFrame(PreparedFrame& frame) {
 			return;
 		default: EXIT("vkAcquireNextImageKHR failed: %s\n", VulkanToString(result).c_str());
 	}
-	EXIT_NOT_IMPLEMENTED(swapchain->current_index == static_cast<uint32_t>(-1));
+	CHECK(swapchain->current_index == static_cast<uint32_t>(-1));
 	if (frame.present_commands == nullptr) {
 		frame.present_commands = std::make_unique<CommandBuffer>();
 	}

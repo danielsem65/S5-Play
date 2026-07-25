@@ -132,7 +132,7 @@ VulkanFramebuffer* FramebufferCache::CreateFramebuffer(RenderColorInfo* colors,
 		}
 	}
 
-	EXIT_NOT_IMPLEMENTED(with_depth && first_color != nullptr &&
+	CHECK(with_depth && first_color != nullptr &&
 	                     (first_color_extent.width != depth.vulkan_buffer->extent.width ||
 	                      first_color_extent.height != depth.vulkan_buffer->extent.height));
 
@@ -240,7 +240,7 @@ VulkanFramebuffer* FramebufferCache::CreateFramebuffer(RenderColorInfo* colors,
 
 	auto result =
 	    m_graphics.device.createRenderPass(&render_pass_info, nullptr, &framebuffer->render_pass);
-	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+	CHECK(result != vk::Result::eSuccess);
 
 	vk::Format color_formats[RENDER_COLOR_ATTACHMENTS_MAX] = {};
 	for (uint32_t i = 0; i < color_count; i++) {
@@ -249,7 +249,7 @@ VulkanFramebuffer* FramebufferCache::CreateFramebuffer(RenderColorInfo* colors,
 	framebuffer->render_pass_id = render_pass_compat_id(
 	    color_count, color_formats, with_depth, depth.format, depth_layout, attachment_samples);
 
-	EXIT_NOT_IMPLEMENTED(framebuffer->render_pass == nullptr);
+	CHECK(framebuffer->render_pass == nullptr);
 
 	vk::ImageView views[RENDER_COLOR_ATTACHMENTS_MAX + 1] = {};
 	for (uint32_t i = 0; i < color_count; i++) {
@@ -278,9 +278,9 @@ VulkanFramebuffer* FramebufferCache::CreateFramebuffer(RenderColorInfo* colors,
 
 	result =
 	    m_graphics.device.createFramebuffer(&framebuffer_info, nullptr, &framebuffer->framebuffer);
-	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+	CHECK(result != vk::Result::eSuccess);
 
-	EXIT_NOT_IMPLEMENTED(framebuffer->framebuffer == nullptr);
+	CHECK(framebuffer->framebuffer == nullptr);
 
 	Framebuffer fnew;
 	fnew.framebuffer = framebuffer;

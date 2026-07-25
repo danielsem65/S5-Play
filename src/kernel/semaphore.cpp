@@ -254,7 +254,7 @@ int KYTY_SYSV_ABI KernelCreateSema(KernelSema* sem, const char* name, uint32_t a
                                    int max, void* opt) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(sem == nullptr);
+	CHECK(sem == nullptr);
 
 	if (name == nullptr || attr > 2 || init < 0 || max <= 0 || init > max) {
 		return KERNEL_ERROR_EINVAL;

@@ -44,6 +44,7 @@
 
 namespace Libs {
 
+
 namespace LibC {
 int          GetArgc();
 const char** GetArgv();
@@ -999,12 +1000,12 @@ static KYTY_SYSV_ABI KernelModule KernelLoadStartModule(const char* module_file_
                                                         const KernelLoadModuleOpt* opt, int* res) {
 	PRINT_NAME();
 
-	// EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+	// CHECK(!Common::Thread::IsMainThread());
 
 	LOGF("\tmodule_file_name = %s\n", module_file_name);
 
-	EXIT_NOT_IMPLEMENTED(flags != 0);
-	EXIT_NOT_IMPLEMENTED(opt != nullptr);
+	CHECK(flags != 0);
+	CHECK(opt != nullptr);
 
 	auto* rt = Common::Singleton<Loader::RuntimeLinker>::Instance();
 
@@ -1037,7 +1038,7 @@ static KYTY_SYSV_ABI KernelModule KernelLoadStartModule(const char* module_file_
 
 	LOGF("\tmodule_start() result = %d\n", result);
 
-	EXIT_NOT_IMPLEMENTED(result < 0);
+	CHECK(result < 0);
 
 	if (res != nullptr) {
 		*res = result;
@@ -1051,12 +1052,12 @@ static int KYTY_SYSV_ABI KernelStopUnloadModule(KernelModule handle, size_t args
                                                 int* res) {
 	PRINT_NAME();
 
-	// EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+	// CHECK(!Common::Thread::IsMainThread());
 
 	auto* rt = Common::Singleton<Loader::RuntimeLinker>::Instance();
 
-	EXIT_NOT_IMPLEMENTED(flags != 0);
-	EXIT_NOT_IMPLEMENTED(opt != nullptr);
+	CHECK(flags != 0);
+	CHECK(opt != nullptr);
 
 	auto* program = rt->FindProgramById(handle);
 
@@ -1079,7 +1080,7 @@ static int KYTY_SYSV_ABI KernelStopUnloadModule(KernelModule handle, size_t args
 
 	LOGF("\tmodule_stop() result = %d\n", result);
 
-	EXIT_NOT_IMPLEMENTED(result < 0);
+	CHECK(result < 0);
 
 	if (res != nullptr) {
 		*res = result;
@@ -1093,7 +1094,7 @@ static int KYTY_SYSV_ABI KernelStopUnloadModule(KernelModule handle, size_t args
 static void* KYTY_SYSV_ABI tls_get_addr(TlsInfo* info) {
 	PRINT_NAME();
 
-	// EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+	// CHECK(!Common::Thread::IsMainThread());
 
 	return Loader::RuntimeLinker::TlsGetAddr(info->program) + info->offset;
 }
@@ -1121,13 +1122,13 @@ static int KYTY_SYSV_ABI KernelIsTrinityMode() {
 static int KYTY_SYSV_ABI KernelFsync(int fd) {
 	PRINT_NAME();
 
-	LOGF("\t fd = %d\n", fd);
-
-	return OK;
+	return POSIX_N_CALL(FileSystem::KernelFsync(fd));
 }
 
 static void KYTY_SYSV_ABI KernelSync() {
 	PRINT_NAME();
+
+	FileSystem::KernelSync();
 }
 
 static int KYTY_SYSV_ABI getpid() {
@@ -1158,7 +1159,7 @@ static void KYTY_SYSV_ABI KernelRtldSetApplicationHeapAPI(void* api[]) {
 static int64_t KYTY_SYSV_ABI write(int d, const char* str, int64_t size) {
 	// PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(d < 0);
+	CHECK(d < 0);
 
 	if (Network::Net::IsSocket(d)) {
 		return Network::Net::Send(d, str, static_cast<uint64_t>(size), 0);
@@ -1433,8 +1434,8 @@ static int KYTY_SYSV_ABI KernelGetModuleInfoFromAddr(uint64_t addr, int n, Modul
 	     "\tn = %d\n",
 	     addr, n);
 
-	EXIT_NOT_IMPLEMENTED(n != 2);
-	EXIT_NOT_IMPLEMENTED(r == nullptr);
+	CHECK(n != 2);
+	CHECK(r == nullptr);
 
 	auto* rt = Common::Singleton<Loader::RuntimeLinker>::Instance();
 
@@ -1486,7 +1487,7 @@ static KYTY_SYSV_ABI NewReplace* KernelGetSanitizerNewReplaceExternal() {
 static KYTY_SYSV_ABI int elf_phdr_match_addr(ModuleInfo* m, uint64_t dtor_vaddr) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(m == nullptr);
+	CHECK(m == nullptr);
 
 	auto* rt     = Common::Singleton<Loader::RuntimeLinker>::Instance();
 	auto* p      = rt->FindProgramByAddr(dtor_vaddr);
@@ -1540,7 +1541,7 @@ static KYTY_SYSV_ABI void pthread_cxa_finalize(void* /*p*/) {
 void KYTY_SYSV_ABI KernelSetThreadAtexitCount(get_thread_atexit_count_func_t func) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(g_get_thread_atexit_count_func != nullptr);
+	CHECK(g_get_thread_atexit_count_func != nullptr);
 
 	g_get_thread_atexit_count_func = func;
 }
@@ -1548,7 +1549,7 @@ void KYTY_SYSV_ABI KernelSetThreadAtexitCount(get_thread_atexit_count_func_t fun
 void KYTY_SYSV_ABI KernelSetThreadAtexitReport(thread_atexit_report_func_t func) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(g_thread_atexit_report_func != nullptr);
+	CHECK(g_thread_atexit_report_func != nullptr);
 
 	g_thread_atexit_report_func = func;
 }

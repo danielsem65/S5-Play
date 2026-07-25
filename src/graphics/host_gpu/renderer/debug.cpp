@@ -17,6 +17,7 @@ namespace Libs::Graphics {
 
 static std::atomic<uint32_t> g_scissor_default_log_count = 0;
 
+
 uint32_t render_target_mask_slot(uint32_t mask, uint32_t slot) {
 	return (mask >> (slot * 4u)) & 0x0fu;
 }
@@ -91,9 +92,9 @@ void uc_check(const HW::UserConfig& uc) {
 		LOGF("\t warning: unsupported GE_CNTL vertex_group_size = 0x%04" PRIx16 "\n",
 		     ge_cntl.vertex_group_size);
 	}
-	EXIT_NOT_IMPLEMENTED(user_en.vgpr1 != false);
-	EXIT_NOT_IMPLEMENTED(user_en.vgpr2 != false);
-	EXIT_NOT_IMPLEMENTED(user_en.vgpr3 != false);
+	CHECK(user_en.vgpr1 != false);
+	CHECK(user_en.vgpr2 != false);
+	CHECK(user_en.vgpr3 != false);
 }
 
 void sh_print(const char* func, const HW::Shader& /*uc*/) {
@@ -238,13 +239,13 @@ static bool RenderIsColorDimension(uint32_t dimension) {
 static void RtCheck(const HW::RenderTarget& rt) {
 	if (rt.base.addr != 0) {
 		// bool render_to_texture = (rt.attrib.tile_mode == 0x0d);
-		//  EXIT_NOT_IMPLEMENTED(rt.base_addr == 0);
+		//  CHECK(rt.base_addr == 0);
 
-		EXIT_NOT_IMPLEMENTED(rt.pitch.pitch_div8_minus1 != 0);
-		EXIT_NOT_IMPLEMENTED(rt.pitch.fmask_pitch_div8_minus1 != 0);
-		EXIT_NOT_IMPLEMENTED(rt.slice.slice_div64_minus1 != 0);
+		CHECK(rt.pitch.pitch_div8_minus1 != 0);
+		CHECK(rt.pitch.fmask_pitch_div8_minus1 != 0);
+		CHECK(rt.slice.slice_div64_minus1 != 0);
 
-		EXIT_NOT_IMPLEMENTED(rt.view.base_array_slice_index > rt.view.last_array_slice_index);
+		CHECK(rt.view.base_array_slice_index > rt.view.last_array_slice_index);
 		if (rt.view.base_array_slice_index != 0x00000000 ||
 		    rt.view.last_array_slice_index != 0x00000000) {
 			static bool logged = false;
@@ -264,7 +265,7 @@ static void RtCheck(const HW::RenderTarget& rt) {
 			}
 		}
 		if (rt.info.fmask_compression_enable) {
-			EXIT_NOT_IMPLEMENTED(rt.attrib.num_samples == 0 && rt.attrib.num_fragments == 0);
+			CHECK(rt.attrib.num_samples == 0 && rt.attrib.num_fragments == 0);
 			static bool logged = false;
 			if (!logged) {
 				LOGF("RenderTarget: temporary: ignoring PS5 FMASK metadata for single-sample MSAA "
@@ -274,9 +275,9 @@ static void RtCheck(const HW::RenderTarget& rt) {
 			}
 		}
 
-		// EXIT_NOT_IMPLEMENTED(rt.info.fmask_compression_mode != 0x00000000);
-		EXIT_NOT_IMPLEMENTED(rt.info.fmask_data_compression_disable != false);
-		EXIT_NOT_IMPLEMENTED(rt.info.fmask_one_frag_mode != false);
+		// CHECK(rt.info.fmask_compression_mode != 0x00000000);
+		CHECK(rt.info.fmask_data_compression_disable != false);
+		CHECK(rt.info.fmask_one_frag_mode != false);
 
 		if (rt.info.cmask_fast_clear_enable || rt.info.dcc_compression_enable) {
 			static bool logged = false;
@@ -313,7 +314,7 @@ static void RtCheck(const HW::RenderTarget& rt) {
 				logged = true;
 			}
 		}
-		// EXIT_NOT_IMPLEMENTED(rt.info.blend_clamp != false);
+		// CHECK(rt.info.blend_clamp != false);
 		if (rt.info.round_mode) {
 			static bool logged = false;
 			if (!logged) {
@@ -321,9 +322,9 @@ static void RtCheck(const HW::RenderTarget& rt) {
 				logged = true;
 			}
 		}
-		//		 EXIT_NOT_IMPLEMENTED(rt.format != 0x0000000a);
-		// EXIT_NOT_IMPLEMENTED(rt.channel_type != 0x00000006);
-		// EXIT_NOT_IMPLEMENTED(rt.channel_order != 0x00000001);
+		//		 CHECK(rt.format != 0x0000000a);
+		// CHECK(rt.channel_type != 0x00000006);
+		// CHECK(rt.channel_order != 0x00000001);
 		if (rt.attrib.force_dest_alpha_to_one) {
 			static bool logged = false;
 			if (!logged) {
@@ -331,8 +332,8 @@ static void RtCheck(const HW::RenderTarget& rt) {
 				logged = true;
 			}
 		}
-		// EXIT_NOT_IMPLEMENTED(rt.tile_mode != 0x0000000a);
-		// EXIT_NOT_IMPLEMENTED(rt.fmask_tile_mode != 0x0000000a);
+		// CHECK(rt.tile_mode != 0x0000000a);
+		// CHECK(rt.fmask_tile_mode != 0x0000000a);
 		if (rt.attrib.num_samples != 0x00000000 || rt.attrib.num_fragments != 0x00000000) {
 			static bool logged = false;
 			if (!logged) {
@@ -399,15 +400,15 @@ static void RtCheck(const HW::RenderTarget& rt) {
 			}
 		}
 
-		// EXIT_NOT_IMPLEMENTED(rt.dcc_max_uncompressed_block_size != 0x00000002);
-		// EXIT_NOT_IMPLEMENTED(rt.dcc.max_compressed_block_size != 0x00000000);
-		EXIT_NOT_IMPLEMENTED(rt.dcc.min_compressed_block_size != 0x00000000);
-		// EXIT_NOT_IMPLEMENTED(rt.dcc.color_transform != 0x00000000);
-		EXIT_NOT_IMPLEMENTED(rt.dcc.overwrite_combiner_disable != false);
-		// EXIT_NOT_IMPLEMENTED(rt.dcc.force_independent_blocks != false);
-		// EXIT_NOT_IMPLEMENTED(rt.dcc.independent_128b_blocks != false);
-		// EXIT_NOT_IMPLEMENTED(rt.dcc.data_write_on_dcc_clear_to_reg != false);
-		EXIT_NOT_IMPLEMENTED(rt.dcc.dcc_clear_key_enable != false);
+		// CHECK(rt.dcc_max_uncompressed_block_size != 0x00000002);
+		// CHECK(rt.dcc.max_compressed_block_size != 0x00000000);
+		CHECK(rt.dcc.min_compressed_block_size != 0x00000000);
+		// CHECK(rt.dcc.color_transform != 0x00000000);
+		CHECK(rt.dcc.overwrite_combiner_disable != false);
+		// CHECK(rt.dcc.force_independent_blocks != false);
+		// CHECK(rt.dcc.independent_128b_blocks != false);
+		// CHECK(rt.dcc.data_write_on_dcc_clear_to_reg != false);
+		CHECK(rt.dcc.dcc_clear_key_enable != false);
 		if (rt.cmask.addr != 0x0000000000000000 || rt.cmask_slice.slice_minus1 != 0x00000000 ||
 		    rt.fmask.addr != 0x0000000000000000 ||
 		    (rt.fmask_slice.slice_minus1 != 0x00000000 &&
@@ -422,8 +423,8 @@ static void RtCheck(const HW::RenderTarget& rt) {
 			}
 		}
 
-		EXIT_NOT_IMPLEMENTED(rt.size.width != 0);
-		EXIT_NOT_IMPLEMENTED(rt.size.height != 0);
+		CHECK(rt.size.width != 0);
+		CHECK(rt.size.height != 0);
 	}
 }
 
@@ -504,11 +505,11 @@ static void ZPrint(const char* func, const HW::DepthRenderTarget& z) {
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static void ZCheck(const HW::DepthRenderTarget& z) {
 	if (z.z_info.format == 0) {
-		EXIT_NOT_IMPLEMENTED(z.z_info.format != 0);
-		EXIT_NOT_IMPLEMENTED(z.z_info.tile_mode_index != 0);
-		EXIT_NOT_IMPLEMENTED(z.z_info.num_samples != 0);
-		EXIT_NOT_IMPLEMENTED(z.z_info.tile_surface_enable != false);
-		EXIT_NOT_IMPLEMENTED(z.z_info.expclear_enabled != false);
+		CHECK(z.z_info.format != 0);
+		CHECK(z.z_info.tile_mode_index != 0);
+		CHECK(z.z_info.num_samples != 0);
+		CHECK(z.z_info.tile_surface_enable != false);
+		CHECK(z.z_info.expclear_enabled != false);
 		if (z.z_info.zrange_precision != 0) {
 			LOGF("Warning: zrange_precision != 0\n");
 			// z.z_info.zrange_precision = 0;
@@ -520,8 +521,8 @@ static void ZCheck(const HW::DepthRenderTarget& z) {
 				logged = true;
 			}
 		}
-		EXIT_NOT_IMPLEMENTED(z.z_info.partially_resident != false);
-		EXIT_NOT_IMPLEMENTED(z.z_info.num_mip_levels != 0);
+		CHECK(z.z_info.partially_resident != false);
+		CHECK(z.z_info.num_mip_levels != 0);
 		if (z.z_info.plane_compression != 0) {
 			static bool logged = false;
 			if (!logged) {
@@ -531,8 +532,8 @@ static void ZCheck(const HW::DepthRenderTarget& z) {
 			}
 		}
 	} else {
-		EXIT_NOT_IMPLEMENTED(z.z_info.format != 0x00000001 && z.z_info.format != 0x00000003);
-		// EXIT_NOT_IMPLEMENTED(z.z_info.tile_mode_index != 0x00000002);
+		CHECK(z.z_info.format != 0x00000001 && z.z_info.format != 0x00000003);
+		// CHECK(z.z_info.tile_mode_index != 0x00000002);
 		if (z.z_info.num_samples != 0x00000000) {
 			static bool logged = false;
 			if (!logged) {
@@ -541,8 +542,8 @@ static void ZCheck(const HW::DepthRenderTarget& z) {
 				logged = true;
 			}
 		}
-		// EXIT_NOT_IMPLEMENTED(z.z_info.tile_surface_enable != true);
-		EXIT_NOT_IMPLEMENTED(z.z_info.expclear_enabled != false);
+		// CHECK(z.z_info.tile_surface_enable != true);
+		CHECK(z.z_info.expclear_enabled != false);
 		if (z.z_info.zrange_precision != 0x00000001) {
 			static bool logged = false;
 			if (!logged) {
@@ -558,8 +559,8 @@ static void ZCheck(const HW::DepthRenderTarget& z) {
 				logged = true;
 			}
 		}
-		EXIT_NOT_IMPLEMENTED(z.z_info.partially_resident != false);
-		EXIT_NOT_IMPLEMENTED(z.z_info.num_mip_levels != 0);
+		CHECK(z.z_info.partially_resident != false);
+		CHECK(z.z_info.num_mip_levels != 0);
 		if (z.z_info.plane_compression != 0) {
 			static bool logged = false;
 			if (!logged) {
@@ -571,15 +572,15 @@ static void ZCheck(const HW::DepthRenderTarget& z) {
 	}
 
 	if (z.stencil_info.format == 0) {
-		// EXIT_NOT_IMPLEMENTED(z.stencil_info.format != 0);
-		//  EXIT_NOT_IMPLEMENTED(z.stencil_info.tile_stencil_disable != false);
-		EXIT_NOT_IMPLEMENTED(z.stencil_info.expclear_enabled != false);
-		// EXIT_NOT_IMPLEMENTED(z.stencil_info.tile_mode_index != 0);
-		// EXIT_NOT_IMPLEMENTED(z.stencil_info.tile_split != 0);
-		// EXIT_NOT_IMPLEMENTED(z.stencil_info.texture_compatible_stencil != true);
-		EXIT_NOT_IMPLEMENTED(z.stencil_info.partially_resident != false);
+		// CHECK(z.stencil_info.format != 0);
+		//  CHECK(z.stencil_info.tile_stencil_disable != false);
+		CHECK(z.stencil_info.expclear_enabled != false);
+		// CHECK(z.stencil_info.tile_mode_index != 0);
+		// CHECK(z.stencil_info.tile_split != 0);
+		// CHECK(z.stencil_info.texture_compatible_stencil != true);
+		CHECK(z.stencil_info.partially_resident != false);
 	} else {
-		// EXIT_NOT_IMPLEMENTED(z.stencil_info.format != 0x00000001);
+		// CHECK(z.stencil_info.format != 0x00000001);
 		if (z.stencil_info.tile_stencil_disable != true) {
 
 			static std::atomic<uint32_t> log_count {0};
@@ -587,29 +588,29 @@ static void ZCheck(const HW::DepthRenderTarget& z) {
 				LOGF("DepthTarget: temporary: ignoring PS5 HTILE stencil acceleration\n");
 			}
 		}
-		EXIT_NOT_IMPLEMENTED(z.stencil_info.expclear_enabled != false);
-		// EXIT_NOT_IMPLEMENTED(z.stencil_info.tile_mode_index != 0x00000002);
-		// EXIT_NOT_IMPLEMENTED(z.stencil_info.tile_split != 0x00000002);
-		// EXIT_NOT_IMPLEMENTED(z.stencil_info.texture_compatible_stencil != true);
-		EXIT_NOT_IMPLEMENTED(z.stencil_info.partially_resident != false);
+		CHECK(z.stencil_info.expclear_enabled != false);
+		// CHECK(z.stencil_info.tile_mode_index != 0x00000002);
+		// CHECK(z.stencil_info.tile_split != 0x00000002);
+		// CHECK(z.stencil_info.texture_compatible_stencil != true);
+		CHECK(z.stencil_info.partially_resident != false);
 	}
 
 	if (z.z_info.format != 0 || z.stencil_info.format != 0) {
 
-		EXIT_NOT_IMPLEMENTED(z.depth_info.addr5_swizzle_mask != 0x00000000);
-		EXIT_NOT_IMPLEMENTED(z.depth_info.array_mode != 0x00000000);
-		EXIT_NOT_IMPLEMENTED(z.depth_info.pipe_config != 0x00000000);
-		EXIT_NOT_IMPLEMENTED(z.depth_info.bank_width != 0x00000000);
-		EXIT_NOT_IMPLEMENTED(z.depth_info.bank_height != 0x00000000);
-		EXIT_NOT_IMPLEMENTED(z.depth_info.macro_tile_aspect != 0x00000000);
-		EXIT_NOT_IMPLEMENTED(z.depth_info.num_banks != 0x00000000);
-		EXIT_NOT_IMPLEMENTED(z.htile_surface.linear != 0x00000000);
-		EXIT_NOT_IMPLEMENTED(z.htile_surface.full_cache != 0x00000000);
-		EXIT_NOT_IMPLEMENTED(z.htile_surface.htile_uses_preload_win != 0x00000000);
-		EXIT_NOT_IMPLEMENTED(z.htile_surface.preload != 0x00000000);
-		EXIT_NOT_IMPLEMENTED(z.htile_surface.prefetch_width != 0x00000000);
-		EXIT_NOT_IMPLEMENTED(z.htile_surface.prefetch_height != 0x00000000);
-		EXIT_NOT_IMPLEMENTED(z.htile_surface.dst_outside_zero_to_one != 0x00000000);
+		CHECK(z.depth_info.addr5_swizzle_mask != 0x00000000);
+		CHECK(z.depth_info.array_mode != 0x00000000);
+		CHECK(z.depth_info.pipe_config != 0x00000000);
+		CHECK(z.depth_info.bank_width != 0x00000000);
+		CHECK(z.depth_info.bank_height != 0x00000000);
+		CHECK(z.depth_info.macro_tile_aspect != 0x00000000);
+		CHECK(z.depth_info.num_banks != 0x00000000);
+		CHECK(z.htile_surface.linear != 0x00000000);
+		CHECK(z.htile_surface.full_cache != 0x00000000);
+		CHECK(z.htile_surface.htile_uses_preload_win != 0x00000000);
+		CHECK(z.htile_surface.preload != 0x00000000);
+		CHECK(z.htile_surface.prefetch_width != 0x00000000);
+		CHECK(z.htile_surface.prefetch_height != 0x00000000);
+		CHECK(z.htile_surface.dst_outside_zero_to_one != 0x00000000);
 
 		if (z.depth_view.slice_start != 0x00000000 || z.depth_view.slice_max != 0x00000000) {
 			static std::atomic<uint32_t> log_count {0};
@@ -634,22 +635,22 @@ static void ZCheck(const HW::DepthRenderTarget& z) {
 				     z.depth_view.stencil_write_disable ? "true" : "false");
 			}
 		}
-		EXIT_NOT_IMPLEMENTED(z.z_read_base_addr != z.z_write_base_addr);
-		EXIT_NOT_IMPLEMENTED(z.stencil_read_base_addr != z.stencil_write_base_addr);
-		EXIT_NOT_IMPLEMENTED(z.z_write_base_addr == 0);
+		CHECK(z.z_read_base_addr != z.z_write_base_addr);
+		CHECK(z.stencil_read_base_addr != z.stencil_write_base_addr);
+		CHECK(z.z_write_base_addr == 0);
 		if (z.stencil_info.format != 0 && z.stencil_write_base_addr == 0) {
 			LOGF("\t warning: stencil format is set without a stencil base address, continuing "
 			     "without stencil attachment\n");
 		}
-		// EXIT_NOT_IMPLEMENTED(z.pitch_div8_minus1 != 0x000000ff);
-		// EXIT_NOT_IMPLEMENTED(z.height_div8_minus1 != 0x0000008f);
-		// EXIT_NOT_IMPLEMENTED(z.slice_div64_minus1 != 0x00008fff);
-		// EXIT_NOT_IMPLEMENTED(z.htile_data_base_addr == 0);
-		// EXIT_NOT_IMPLEMENTED(z.width != 0x00000780);
-		// EXIT_NOT_IMPLEMENTED(z.height != 0x00000438);
+		// CHECK(z.pitch_div8_minus1 != 0x000000ff);
+		// CHECK(z.height_div8_minus1 != 0x0000008f);
+		// CHECK(z.slice_div64_minus1 != 0x00008fff);
+		// CHECK(z.htile_data_base_addr == 0);
+		// CHECK(z.width != 0x00000780);
+		// CHECK(z.height != 0x00000438);
 
-		EXIT_NOT_IMPLEMENTED(z.width != 0);
-		EXIT_NOT_IMPLEMENTED(z.height != 0);
+		CHECK(z.width != 0);
+		CHECK(z.height != 0);
 		if (z.size.x_max == 0 || z.size.y_max == 0) {
 			static std::atomic<uint32_t> log_count {0};
 			if (log_count.fetch_add(1) < 16) {
@@ -688,7 +689,7 @@ static void ClipPrint(const char* func, const HW::ClipControl& c) {
 static void ClipCheck(const HW::ClipControl& c) {
 	// dx_linear_attr_clip_enable preserves linear (noperspective) attributes at clip-generated
 	// vertices, which Vulkan provides as part of clipping and interpolation.
-	EXIT_NOT_IMPLEMENTED(c.user_clip_planes != 0 || c.user_clip_plane_mode != 0 ||
+	CHECK(c.user_clip_planes != 0 || c.user_clip_plane_mode != 0 ||
 	                     c.vertex_kill_any || !c.IsZClipModeRepresentable() ||
 	                     c.user_clip_plane_negate_y || c.clip_disable ||
 	                     c.user_clip_plane_cull_only || c.cull_on_clipping_error_disable ||
@@ -712,8 +713,8 @@ static void RcPrint(const char* func, const HW::RenderControl& c) {
 }
 
 static void RcCheck(const HW::RenderControl& c) {
-	// EXIT_NOT_IMPLEMENTED(c.depth_clear_enable != false);
-	// EXIT_NOT_IMPLEMENTED(c.stencil_clear_enable != false);
+	// CHECK(c.depth_clear_enable != false);
+	// CHECK(c.stencil_clear_enable != false);
 	if ((c.resummarize_enable || c.copy_centroid || c.copy_sample != 0)) {
 		static std::atomic<uint32_t> log_count {0};
 		if (log_count.fetch_add(1) < 16) {
@@ -724,11 +725,11 @@ static void RcCheck(const HW::RenderControl& c) {
 		}
 		return;
 	}
-	EXIT_NOT_IMPLEMENTED(c.resummarize_enable != false);
-	// EXIT_NOT_IMPLEMENTED(c.stencil_compress_disable != false);
-	// EXIT_NOT_IMPLEMENTED(c.depth_compress_disable != false);
-	EXIT_NOT_IMPLEMENTED(c.copy_centroid != false);
-	EXIT_NOT_IMPLEMENTED(c.copy_sample != 0);
+	CHECK(c.resummarize_enable != false);
+	// CHECK(c.stencil_compress_disable != false);
+	// CHECK(c.depth_compress_disable != false);
+	CHECK(c.copy_centroid != false);
+	CHECK(c.copy_sample != 0);
 }
 
 static void McPrint(const char* func, const HW::ModeControl& c) {
@@ -754,9 +755,9 @@ static void McPrint(const char* func, const HW::ModeControl& c) {
 }
 
 static void McCheck(const HW::ModeControl& c) {
-	// EXIT_NOT_IMPLEMENTED(c.cull_front != false);
-	// EXIT_NOT_IMPLEMENTED(c.cull_back != false);
-	// EXIT_NOT_IMPLEMENTED(c.face != false);
+	// CHECK(c.cull_front != false);
+	// CHECK(c.cull_back != false);
+	// CHECK(c.face != false);
 	if (c.poly_mode != 0) {
 		static bool logged = false;
 		if (!logged) {
@@ -765,16 +766,8 @@ static void McCheck(const HW::ModeControl& c) {
 			logged = true;
 		}
 	}
-	EXIT_NOT_IMPLEMENTED(c.polymode_front_ptype != 0 && c.polymode_front_ptype != 2);
-	EXIT_NOT_IMPLEMENTED(c.polymode_back_ptype != 0 && c.polymode_back_ptype != 2);
-	if (c.poly_offset_front_enable || c.poly_offset_back_enable) {
-		static bool logged = false;
-		if (!logged) {
-			LOGF("\t temporary: PA_SU_SC_MODE_CNTL.POLY_OFFSET_*_ENABLE is not implemented; "
-			     "continuing without depth bias\n");
-			logged = true;
-		}
-	}
+	CHECK(c.polymode_front_ptype != 0 && c.polymode_front_ptype != 2);
+	CHECK(c.polymode_back_ptype != 0 && c.polymode_back_ptype != 2);
 	if (c.vtx_window_offset_enable) {
 		static bool logged = false;
 		if (!logged) {
@@ -784,8 +777,8 @@ static void McCheck(const HW::ModeControl& c) {
 			logged = true;
 		}
 	}
-	EXIT_NOT_IMPLEMENTED(c.provoking_vtx_last != false);
-	EXIT_NOT_IMPLEMENTED(c.persp_corr_dis != false);
+	CHECK(c.provoking_vtx_last != false);
+	CHECK(c.persp_corr_dis != false);
 }
 
 static void BcPrint(const char* func, const HW::BlendControl& c, const HW::BlendColor& color,
@@ -813,14 +806,14 @@ static void BcPrint(const char* func, const HW::BlendControl& c, const HW::Blend
 
 static void BcCheck(const HW::BlendControl& /*c*/, const HW::BlendColor& color,
                     const HW::ColorControl& cc) {
-	// EXIT_NOT_IMPLEMENTED(c.color_srcblend != 0);
-	// EXIT_NOT_IMPLEMENTED(c.color_comb_fcn != 0);
-	// EXIT_NOT_IMPLEMENTED(c.color_destblend != 0);
-	// EXIT_NOT_IMPLEMENTED(c.alpha_srcblend != 0);
-	// EXIT_NOT_IMPLEMENTED(c.alpha_comb_fcn != 0);
-	// EXIT_NOT_IMPLEMENTED(c.alpha_destblend != 0);
-	// EXIT_NOT_IMPLEMENTED(c.separate_alpha_blend != false);
-	// EXIT_NOT_IMPLEMENTED(c.enable != false);
+	// CHECK(c.color_srcblend != 0);
+	// CHECK(c.color_comb_fcn != 0);
+	// CHECK(c.color_destblend != 0);
+	// CHECK(c.alpha_srcblend != 0);
+	// CHECK(c.alpha_comb_fcn != 0);
+	// CHECK(c.alpha_destblend != 0);
+	// CHECK(c.separate_alpha_blend != false);
+	// CHECK(c.enable != false);
 	if (color.red != 0.0f || color.green != 0.0f || color.blue != 0.0f || color.alpha != 0.0f) {
 		static bool logged = false;
 		if (!logged) {
@@ -888,27 +881,27 @@ static void DPrint(const char* func, const HW::DepthControl& c, const HW::Stenci
 
 static void DCheck(const HW::DepthControl& c, const HW::StencilControl& s,
                    const HW::StencilMask& /*sm*/) {
-	// EXIT_NOT_IMPLEMENTED(c.stencil_enable != false);
-	// EXIT_NOT_IMPLEMENTED(c.z_enable != false);
-	// EXIT_NOT_IMPLEMENTED(c.z_write_enable != false);
-	// EXIT_NOT_IMPLEMENTED(c.zfunc != 0);
+	// CHECK(c.stencil_enable != false);
+	// CHECK(c.z_enable != false);
+	// CHECK(c.z_write_enable != false);
+	// CHECK(c.zfunc != 0);
 	// Back-face stencil state is handled separately when enabled.
-	// EXIT_NOT_IMPLEMENTED(c.stencilfunc != 0);
-	// EXIT_NOT_IMPLEMENTED(c.stencilfunc_bf != 0);
-	EXIT_NOT_IMPLEMENTED(c.color_writes_on_depth_fail_enable != false);
-	EXIT_NOT_IMPLEMENTED(c.color_writes_on_depth_pass_disable != false);
-	// EXIT_NOT_IMPLEMENTED(s.stencil_fail != 0);
-	// EXIT_NOT_IMPLEMENTED(s.stencil_zpass != 0);
-	// EXIT_NOT_IMPLEMENTED(s.stencil_zfail != 0);
+	// CHECK(c.stencilfunc != 0);
+	// CHECK(c.stencilfunc_bf != 0);
+	CHECK(c.color_writes_on_depth_fail_enable != false);
+	CHECK(c.color_writes_on_depth_pass_disable != false);
+	// CHECK(s.stencil_fail != 0);
+	// CHECK(s.stencil_zpass != 0);
+	// CHECK(s.stencil_zfail != 0);
 	// Back-face stencil ops may legitimately differ from the front-face ops.
-	// EXIT_NOT_IMPLEMENTED(sm.stencil_testval != 0);
-	// EXIT_NOT_IMPLEMENTED(sm.stencil_mask != 0);
-	// EXIT_NOT_IMPLEMENTED(sm.stencil_writemask != 0);
-	// EXIT_NOT_IMPLEMENTED(sm.stencil_opval != 0);
-	// EXIT_NOT_IMPLEMENTED(sm.stencil_testval_bf != 0);
-	// EXIT_NOT_IMPLEMENTED(sm.stencil_mask_bf != 0);
-	// EXIT_NOT_IMPLEMENTED(sm.stencil_writemask_bf != 0);
-	// EXIT_NOT_IMPLEMENTED(sm.stencil_opval_bf != 0);
+	// CHECK(sm.stencil_testval != 0);
+	// CHECK(sm.stencil_mask != 0);
+	// CHECK(sm.stencil_writemask != 0);
+	// CHECK(sm.stencil_opval != 0);
+	// CHECK(sm.stencil_testval_bf != 0);
+	// CHECK(sm.stencil_mask_bf != 0);
+	// CHECK(sm.stencil_writemask_bf != 0);
+	// CHECK(sm.stencil_opval_bf != 0);
 }
 
 static void EqaaPrint(const char* func, const HW::EqaaControl& c) {
@@ -1063,8 +1056,8 @@ static void VpCheck(const HW::ScreenViewport& vp, const HW::ScanModeControl& smc
 			LOGF("\t warning: unsupported PS5 MSAA raster controls use native Vulkan defaults\n");
 		}
 	}
-	// EXIT_NOT_IMPLEMENTED(smc.vport_scissor_enable);
-	EXIT_NOT_IMPLEMENTED(smc.line_stipple_enable);
+	// CHECK(smc.vport_scissor_enable);
+	CHECK(smc.line_stipple_enable);
 
 	if (vp.viewports[0].zmin > 0.000000 || vp.viewports[0].zmax != 1.000000) {
 		static bool logged = false;
@@ -1075,12 +1068,12 @@ static void VpCheck(const HW::ScreenViewport& vp, const HW::ScanModeControl& smc
 			logged = true;
 		}
 	}
-	// EXIT_NOT_IMPLEMENTED(vp.viewports[0].xscale != 960.000000);
-	// EXIT_NOT_IMPLEMENTED(vp.viewports[0].xoffset != 960.000000);
-	// EXIT_NOT_IMPLEMENTED(vp.viewports[0].yscale != -540.000000);
-	// EXIT_NOT_IMPLEMENTED(vp.viewports[0].yoffset != 540.000000);
-	// EXIT_NOT_IMPLEMENTED(vp.viewports[0].zscale != 0.500000);
-	// EXIT_NOT_IMPLEMENTED(vp.viewports[0].zoffset != 0.500000);
+	// CHECK(vp.viewports[0].xscale != 960.000000);
+	// CHECK(vp.viewports[0].xoffset != 960.000000);
+	// CHECK(vp.viewports[0].yscale != -540.000000);
+	// CHECK(vp.viewports[0].yoffset != 540.000000);
+	// CHECK(vp.viewports[0].zscale != 0.500000);
+	// CHECK(vp.viewports[0].zoffset != 0.500000);
 	if (vp.transform_control != 1087) {
 		static std::atomic<uint32_t> log_count {0};
 		if (log_count.fetch_add(1, std::memory_order_relaxed) < 16) {
@@ -1089,10 +1082,10 @@ static void VpCheck(const HW::ScreenViewport& vp, const HW::ScanModeControl& smc
 			     vp.transform_control);
 		}
 	}
-	// EXIT_NOT_IMPLEMENTED(vp.hw_offset_x != 60);
-	// EXIT_NOT_IMPLEMENTED(vp.hw_offset_y != 32);
-	// EXIT_NOT_IMPLEMENTED(fabsf(vp.guard_band_horz_clip - 33.133327f) > 0.001f);
-	// EXIT_NOT_IMPLEMENTED(fabsf(vp.guard_band_vert_clip - 59.629623f) > 0.001f);
+	// CHECK(vp.hw_offset_x != 60);
+	// CHECK(vp.hw_offset_y != 32);
+	// CHECK(fabsf(vp.guard_band_horz_clip - 33.133327f) > 0.001f);
+	// CHECK(fabsf(vp.guard_band_vert_clip - 59.629623f) > 0.001f);
 
 	if (vp.guard_band_horz_discard != 0.0f || vp.guard_band_vert_discard != 0.0f) {
 		static std::atomic<uint32_t> log_count {0};
@@ -1102,11 +1095,11 @@ static void VpCheck(const HW::ScreenViewport& vp, const HW::ScanModeControl& smc
 		}
 	}
 
-	// EXIT_NOT_IMPLEMENTED(vp.viewports[0].viewport_scissor_left != 0);
-	// EXIT_NOT_IMPLEMENTED(vp.viewports[0].viewport_scissor_top != 0);
-	// EXIT_NOT_IMPLEMENTED(vp.viewports[0].viewport_scissor_right != 0);
-	// EXIT_NOT_IMPLEMENTED(vp.viewports[0].viewport_scissor_bottom != 0);
-	// EXIT_NOT_IMPLEMENTED(viewport_scissor &&
+	// CHECK(vp.viewports[0].viewport_scissor_left != 0);
+	// CHECK(vp.viewports[0].viewport_scissor_top != 0);
+	// CHECK(vp.viewports[0].viewport_scissor_right != 0);
+	// CHECK(vp.viewports[0].viewport_scissor_bottom != 0);
+	// CHECK(viewport_scissor &&
 	// vp.viewports[0].viewport_scissor_window_offset_enable != true);
 }
 
@@ -1312,7 +1305,7 @@ void hw_check(const RenderCommandBuffer& buffer) {
 			     hw.GetDepthClearValue());
 		}
 	}
-	// EXIT_NOT_IMPLEMENTED(hw.GetStencilClearValue() != 0);
+	// CHECK(hw.GetStencilClearValue() != 0);
 }
 
 void hw_print(const RenderCommandBuffer& buffer) {

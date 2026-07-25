@@ -30,7 +30,7 @@ uint32_t PixelParameterLocation(const EmitterState& state, uint32_t attr) {
 			       used_locations[fallback_location]) {
 				fallback_location++;
 			}
-			EXIT_NOT_IMPLEMENTED(fallback_location >= std::size(used_locations));
+			CHECK(fallback_location >= std::size(used_locations));
 			location = fallback_location;
 		}
 

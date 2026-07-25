@@ -25,6 +25,7 @@ namespace Libs::Audio {
 
 namespace {
 
+
 constexpr int AUDIO_OUT_PORT_TYPE_MAIN      = 0;
 constexpr int AUDIO_OUT_PORT_TYPE_BGM       = 1;
 constexpr int AUDIO_OUT_PORT_TYPE_VOICE     = 2;
@@ -495,8 +496,8 @@ bool Audio::AudioOutSetVolume(Id handle, uint32_t bitflag, const int* volume) {
 }
 
 uint32_t Audio::AudioOutOutputs(OutputParam* params, uint32_t num, bool blocking) {
-	EXIT_NOT_IMPLEMENTED(num == 0);
-	EXIT_NOT_IMPLEMENTED(!AudioOutValid(params[0].handle));
+	CHECK(num == 0);
+	CHECK(!AudioOutValid(params[0].handle));
 
 	const auto& first_port = m_out_ports[params[0].handle.GetId()];
 
@@ -562,8 +563,8 @@ bool Audio::AudioInValid(Id handle) {
 }
 
 uint32_t Audio::AudioInInput(Id handle, void* dest) {
-	EXIT_NOT_IMPLEMENTED(!AudioInValid(handle));
-	EXIT_NOT_IMPLEMENTED(dest == nullptr);
+	CHECK(!AudioInValid(handle));
+	CHECK(dest == nullptr);
 
 	const auto& port = m_in_ports[handle.GetId()];
 
@@ -620,7 +621,7 @@ int KYTY_SYSV_ABI AudioOutOpen(int user_id, int type, int index, uint32_t len, u
 	if (!audio_out_port_type_is_valid(type)) {
 		return AUDIO_OUT_ERROR_INVALID_PORT_TYPE;
 	}
-	EXIT_NOT_IMPLEMENTED(index != 0);
+	CHECK(index != 0);
 
 	Audio::Format format       = Audio::Format::Unknown;
 	const auto    format_param = param & AUDIO_OUT_PARAM_FORMAT_MASK;
@@ -640,7 +641,7 @@ int KYTY_SYSV_ABI AudioOutOpen(int user_id, int type, int index, uint32_t len, u
 	LOGF("\t param   = %u (format=%u, %s)\n", param, format_param,
 	     Common::EnumName(format).c_str());
 
-	EXIT_NOT_IMPLEMENTED(format == Audio::Format::Unknown);
+	CHECK(format == Audio::Format::Unknown);
 
 	EXIT_IF(g_audio == nullptr);
 
@@ -673,7 +674,7 @@ int KYTY_SYSV_ABI AudioOutGetPortState(int handle, AudioOutPortState* state) {
 		return AUDIO_OUT_ERROR_INVALID_PORT;
 	}
 
-	EXIT_NOT_IMPLEMENTED(state == nullptr);
+	CHECK(state == nullptr);
 
 	state->reroute_counter = 0;
 	state->volume          = 127;
@@ -717,7 +718,7 @@ int KYTY_SYSV_ABI AudioOutSetVolume(int handle, uint32_t flag, int* vol) {
 	     handle, flag);
 
 	EXIT_IF(g_audio == nullptr);
-	EXIT_NOT_IMPLEMENTED(vol == nullptr);
+	CHECK(vol == nullptr);
 
 	if (!g_audio->AudioOutSetVolume(Audio::Id(handle), flag, vol)) {
 		return AUDIO_OUT_ERROR_INVALID_PORT;
@@ -729,7 +730,7 @@ int KYTY_SYSV_ABI AudioOutSetVolume(int handle, uint32_t flag, int* vol) {
 int KYTY_SYSV_ABI AudioOutOutputs(AudioOutOutputParam* param, uint32_t num) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(param == nullptr);
+	CHECK(param == nullptr);
 
 	Audio::OutputParam params[Audio::OUT_PORTS_MAX];
 
@@ -748,7 +749,7 @@ int KYTY_SYSV_ABI AudioOutOutputs(AudioOutOutputParam* param, uint32_t num) {
 }
 
 int KYTY_SYSV_ABI AudioOutOutput(int handle, const void* ptr) {
-	// EXIT_NOT_IMPLEMENTED(ptr == nullptr);
+	// CHECK(ptr == nullptr);
 
 	Audio::OutputParam params[1];
 
@@ -784,8 +785,8 @@ int KYTY_SYSV_ABI AudioInOpen(int user_id, uint32_t type, uint32_t index, uint32
 	if (user_id != 255 && user_id != 1) {
 		LOGF("\t temporary: accepting unsupported audio input user_id %d\n", user_id);
 	}
-	EXIT_NOT_IMPLEMENTED(type != 1);
-	EXIT_NOT_IMPLEMENTED(index != 0);
+	CHECK(type != 1);
+	CHECK(index != 0);
 
 	Audio::Format format = Audio::Format::Unknown;
 
@@ -815,7 +816,7 @@ int KYTY_SYSV_ABI AudioInOpen(int user_id, uint32_t type, uint32_t index, uint32
 int KYTY_SYSV_ABI AudioInInput(int handle, void* dest) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(dest == nullptr);
+	CHECK(dest == nullptr);
 
 	EXIT_IF(g_audio == nullptr);
 
@@ -873,7 +874,7 @@ static void acm_advance_batch(AcmBatchInfo* info, size_t bytes) {
 int KYTY_SYSV_ABI AcmContextCreate(AcmContextId* context) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(context == nullptr);
+	CHECK(context == nullptr);
 
 	*context = g_acm_next_context.fetch_add(1, std::memory_order_relaxed);
 
@@ -893,7 +894,7 @@ int KYTY_SYSV_ABI AcmBatchStartBuffer(AcmContextId context, const void* batch_co
                                       AcmBatchId* batch) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(batch == nullptr);
+	CHECK(batch == nullptr);
 
 	if (batch_error != nullptr) {
 		std::memset(batch_error, 0, sizeof(AcmBatchError));
@@ -909,8 +910,8 @@ int KYTY_SYSV_ABI AcmBatchStartBuffers(AcmContextId context, uint32_t batch_info
                                        AcmBatchError* batch_error, AcmBatchId* batch) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(batch_info_count != 0 && batch_info == nullptr);
-	EXIT_NOT_IMPLEMENTED(batch == nullptr);
+	CHECK(batch_info_count != 0 && batch_info == nullptr);
+	CHECK(batch == nullptr);
 
 	if (batch_error != nullptr) {
 		std::memset(batch_error, 0, sizeof(AcmBatchError));
@@ -1094,7 +1095,7 @@ static void playback_simulate(void* arg) {
 int KYTY_SYSV_ABI Audio3dInitialize(int64_t reserved) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(reserved != 0);
+	CHECK(reserved != 0);
 
 	return OK;
 }
@@ -1102,7 +1103,7 @@ int KYTY_SYSV_ABI Audio3dInitialize(int64_t reserved) {
 void KYTY_SYSV_ABI Audio3dGetDefaultOpenParameters(Audio3dOpenParameters* p) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(sizeof(Audio3dOpenParameters) != 0x20);
+	CHECK(sizeof(Audio3dOpenParameters) != 0x20);
 
 	*p = Audio3dOpenParameters();
 }
@@ -1111,9 +1112,9 @@ int KYTY_SYSV_ABI Audio3dPortOpen(int user_id, const Audio3dOpenParameters* para
                                   uint32_t* id) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(parameters == nullptr);
-	EXIT_NOT_IMPLEMENTED(id == nullptr);
-	EXIT_NOT_IMPLEMENTED(parameters->size != 0x20);
+	CHECK(parameters == nullptr);
+	CHECK(id == nullptr);
+	CHECK(parameters->size != 0x20);
 
 	LOGF("\t user_id     = %d\n"
 	     "\t granularity = %u\n"
@@ -1124,8 +1125,8 @@ int KYTY_SYSV_ABI Audio3dPortOpen(int user_id, const Audio3dOpenParameters* para
 	     user_id, parameters->granularity, parameters->rate, parameters->max_objects,
 	     parameters->queue_depth, parameters->buffer_mode);
 
-	EXIT_NOT_IMPLEMENTED(parameters->buffer_mode != 2);
-	EXIT_NOT_IMPLEMENTED(user_id != 255 && user_id != 1);
+	CHECK(parameters->buffer_mode != 2);
+	CHECK(user_id != 255 && user_id != 1);
 
 	uint32_t port = 0;
 	for (; port < MAX_PORTS; port++) {
@@ -1134,7 +1135,7 @@ int KYTY_SYSV_ABI Audio3dPortOpen(int user_id, const Audio3dOpenParameters* para
 		}
 	}
 
-	EXIT_NOT_IMPLEMENTED(port >= MAX_PORTS);
+	CHECK(port >= MAX_PORTS);
 
 	g_ports[port].user_id = user_id;
 	g_ports[port].params  = *parameters;
@@ -1155,7 +1156,7 @@ int KYTY_SYSV_ABI Audio3dPortOpen(int user_id, const Audio3dOpenParameters* para
 
 	int result = Semaphore::KernelCreateSema(&g_ports[port].playback_sema, "audio3d_play", 0x01, 0,
 	                                         static_cast<int>(parameters->queue_depth), nullptr);
-	EXIT_NOT_IMPLEMENTED(result != OK);
+	CHECK(result != OK);
 
 	g_ports[port].playback_finished = false;
 	Common::Thread playback_thread(playback_simulate, &g_ports[port]);
@@ -1170,25 +1171,25 @@ int KYTY_SYSV_ABI Audio3dPortSetAttribute(uint32_t port_id, uint32_t attribute_i
                                           const void* attribute, size_t attribute_size) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(port_id >= MAX_PORTS);
-	EXIT_NOT_IMPLEMENTED(!g_ports[port_id].used);
-	EXIT_NOT_IMPLEMENTED(attribute == nullptr);
+	CHECK(port_id >= MAX_PORTS);
+	CHECK(!g_ports[port_id].used);
+	CHECK(attribute == nullptr);
 
 	LOGF("\t attribute_id = 0x%" PRIx32 "\n", attribute_id);
 
 	switch (attribute_id) {
 		case 0x10001:
-			EXIT_NOT_IMPLEMENTED(attribute_size != 4);
+			CHECK(attribute_size != 4);
 			g_ports[port_id].late_reverb_level = *static_cast<const float*>(attribute);
 			LOGF("\t late_reverb_level = %f\n", g_ports[port_id].late_reverb_level);
 			break;
 		case 0x10002:
-			EXIT_NOT_IMPLEMENTED(attribute_size != 4);
+			CHECK(attribute_size != 4);
 			g_ports[port_id].downmix_spread_radius = *static_cast<const float*>(attribute);
 			LOGF("\t downmix_spread_radius = %f\n", g_ports[port_id].downmix_spread_radius);
 			break;
 		case 0x10003:
-			EXIT_NOT_IMPLEMENTED(attribute_size != 4);
+			CHECK(attribute_size != 4);
 			g_ports[port_id].downmix_spread_height_aware = *static_cast<const int*>(attribute);
 			LOGF("\t downmix_spread_height_aware = %d\n",
 			     g_ports[port_id].downmix_spread_height_aware);
@@ -1203,9 +1204,9 @@ int KYTY_SYSV_ABI Audio3dPortGetQueueLevel(uint32_t port_id, uint32_t* queue_lev
                                            uint32_t* queue_available) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(port_id >= MAX_PORTS);
-	EXIT_NOT_IMPLEMENTED(!g_ports[port_id].used);
-	EXIT_NOT_IMPLEMENTED(queue_level == nullptr && queue_available == nullptr);
+	CHECK(port_id >= MAX_PORTS);
+	CHECK(!g_ports[port_id].used);
+	CHECK(queue_level == nullptr && queue_available == nullptr);
 
 	auto* port = &g_ports[port_id];
 
@@ -1242,8 +1243,8 @@ int KYTY_SYSV_ABI Audio3dPortGetQueueLevel(uint32_t port_id, uint32_t* queue_lev
 int KYTY_SYSV_ABI Audio3dPortAdvance(uint32_t port_id) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(port_id >= MAX_PORTS);
-	EXIT_NOT_IMPLEMENTED(!g_ports[port_id].used);
+	CHECK(port_id >= MAX_PORTS);
+	CHECK(!g_ports[port_id].used);
 
 	auto* port = &g_ports[port_id];
 
@@ -1256,7 +1257,7 @@ int KYTY_SYSV_ABI Audio3dPortAdvance(uint32_t port_id) {
 			port->data[current_index].state = Audio3dData::State::Ready;
 		}
 
-		EXIT_NOT_IMPLEMENTED(port->data[current_index].state != Audio3dData::State::Ready);
+		CHECK(port->data[current_index].state != Audio3dData::State::Ready);
 
 		port->data_index = next_index;
 
@@ -1270,12 +1271,12 @@ int KYTY_SYSV_ABI Audio3dPortAdvance(uint32_t port_id) {
 int KYTY_SYSV_ABI Audio3dPortPush(uint32_t port_id, uint32_t blocking) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(port_id >= MAX_PORTS);
-	EXIT_NOT_IMPLEMENTED(!g_ports[port_id].used);
+	CHECK(port_id >= MAX_PORTS);
+	CHECK(!g_ports[port_id].used);
 
 	auto* port = &g_ports[port_id];
 
-	EXIT_NOT_IMPLEMENTED(blocking != 1);
+	CHECK(blocking != 1);
 
 	LOGF("\t blocking = %u\n", blocking);
 
@@ -1707,7 +1708,7 @@ static Ngs2SystemOption Ngs2DefaultSystemOption() {
 int KYTY_SYSV_ABI Ngs2SystemResetOption(Ngs2SystemOption* option) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(option == nullptr);
+	CHECK(option == nullptr);
 
 	*option = Ngs2DefaultSystemOption();
 	return OK;
@@ -1735,7 +1736,7 @@ int KYTY_SYSV_ABI Ngs2SystemQueryBufferSize(const Ngs2SystemOption* option,
                                             Ngs2ContextBufferInfo*  buffer_info) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(buffer_info == nullptr);
+	CHECK(buffer_info == nullptr);
 
 	auto default_option = Ngs2DefaultSystemOption();
 	if (option == nullptr) {
@@ -1743,7 +1744,7 @@ int KYTY_SYSV_ABI Ngs2SystemQueryBufferSize(const Ngs2SystemOption* option,
 		LOGF("\t option            = nullptr, using reset defaults\n");
 	}
 
-	EXIT_NOT_IMPLEMENTED(option->size != sizeof(Ngs2SystemOption));
+	CHECK(option->size != sizeof(Ngs2SystemOption));
 
 	std::memset(buffer_info, 0, sizeof(Ngs2ContextBufferInfo));
 	buffer_info->host_buffer_size = sizeof(Ngs2Internal);
@@ -1755,10 +1756,10 @@ int KYTY_SYSV_ABI Ngs2SystemCreate(const Ngs2SystemOption*      option,
                                    const Ngs2ContextBufferInfo* buffer_info, uintptr_t* handle) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(buffer_info == nullptr);
-	EXIT_NOT_IMPLEMENTED(handle == nullptr);
-	EXIT_NOT_IMPLEMENTED(buffer_info->host_buffer == nullptr);
-	EXIT_NOT_IMPLEMENTED(buffer_info->host_buffer_size < sizeof(Ngs2Internal));
+	CHECK(buffer_info == nullptr);
+	CHECK(handle == nullptr);
+	CHECK(buffer_info->host_buffer == nullptr);
+	CHECK(buffer_info->host_buffer_size < sizeof(Ngs2Internal));
 
 	auto default_option = Ngs2DefaultSystemOption();
 	if (option == nullptr) {
@@ -1766,7 +1767,7 @@ int KYTY_SYSV_ABI Ngs2SystemCreate(const Ngs2SystemOption*      option,
 		LOGF("\t option            = nullptr, using reset defaults\n");
 	}
 
-	EXIT_NOT_IMPLEMENTED(option->size != sizeof(Ngs2SystemOption));
+	CHECK(option->size != sizeof(Ngs2SystemOption));
 
 	auto* ngs = Ngs2CreateSystemInternal(option, buffer_info->host_buffer);
 
@@ -1776,7 +1777,7 @@ int KYTY_SYSV_ABI Ngs2SystemCreate(const Ngs2SystemOption*      option,
 }
 
 static void Ngs2FillDefaultRackOption(uint32_t rack_id, Ngs2RackOptionUnion* option) {
-	EXIT_NOT_IMPLEMENTED(option == nullptr);
+	CHECK(option == nullptr);
 
 	*option = {};
 
@@ -1869,7 +1870,7 @@ int KYTY_SYSV_ABI Ngs2RackQueryBufferSize(uint32_t rack_id, const Ngs2RackOption
                                           Ngs2ContextBufferInfo* buffer_info) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(buffer_info == nullptr);
+	CHECK(buffer_info == nullptr);
 
 	Ngs2RackOptionUnion default_option {};
 	if (option == nullptr) {
@@ -1893,10 +1894,10 @@ int KYTY_SYSV_ABI Ngs2SystemCreateWithAllocator(const Ngs2SystemOption*    optio
                                                 uintptr_t*                 handle) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(allocator == nullptr);
-	EXIT_NOT_IMPLEMENTED(handle == nullptr);
-	EXIT_NOT_IMPLEMENTED(allocator->alloc_handler == nullptr);
-	EXIT_NOT_IMPLEMENTED(allocator->free_handler == nullptr);
+	CHECK(allocator == nullptr);
+	CHECK(handle == nullptr);
+	CHECK(allocator->alloc_handler == nullptr);
+	CHECK(allocator->free_handler == nullptr);
 
 	auto default_option = Ngs2DefaultSystemOption();
 	if (option == nullptr) {
@@ -1904,7 +1905,7 @@ int KYTY_SYSV_ABI Ngs2SystemCreateWithAllocator(const Ngs2SystemOption*    optio
 		LOGF("\t option            = nullptr, using reset defaults\n");
 	}
 
-	EXIT_NOT_IMPLEMENTED(option->size != sizeof(Ngs2SystemOption));
+	CHECK(option->size != sizeof(Ngs2SystemOption));
 
 	LOGF("\t name              = %.64s\n"
 	     "\t flags             = %u\n"
@@ -1928,8 +1929,8 @@ int KYTY_SYSV_ABI Ngs2SystemCreateWithAllocator(const Ngs2SystemOption*    optio
 
 	int result = allocator->alloc_handler(&buf);
 
-	EXIT_NOT_IMPLEMENTED(result != OK);
-	EXIT_NOT_IMPLEMENTED(buf.host_buffer == nullptr);
+	CHECK(result != OK);
+	CHECK(buf.host_buffer == nullptr);
 
 	auto* ngs      = Ngs2CreateSystemInternal(option, buf.host_buffer);
 	ngs->allocator = *allocator;
@@ -1945,7 +1946,7 @@ int KYTY_SYSV_ABI Ngs2SystemSetGrainSamples(uintptr_t system_handle, uint32_t nu
 	     "\t num_samples   = %u\n",
 	     static_cast<uint64_t>(system_handle), num_samples);
 
-	EXIT_NOT_IMPLEMENTED(system_handle == 0);
+	CHECK(system_handle == 0);
 
 	auto* ngs                     = reinterpret_cast<Ngs2Internal*>(system_handle);
 	ngs->option.num_grain_samples = num_samples;
@@ -1969,11 +1970,11 @@ int KYTY_SYSV_ABI Ngs2RackCreate(uintptr_t system_handle, uint32_t rack_id,
                                  const Ngs2ContextBufferInfo* buffer_info, uintptr_t* handle) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(buffer_info == nullptr);
-	EXIT_NOT_IMPLEMENTED(handle == nullptr);
-	EXIT_NOT_IMPLEMENTED(buffer_info->host_buffer == nullptr);
-	EXIT_NOT_IMPLEMENTED(buffer_info->host_buffer_size == 0);
-	EXIT_NOT_IMPLEMENTED(system_handle == 0);
+	CHECK(buffer_info == nullptr);
+	CHECK(handle == nullptr);
+	CHECK(buffer_info->host_buffer == nullptr);
+	CHECK(buffer_info->host_buffer_size == 0);
+	CHECK(system_handle == 0);
 
 	Ngs2RackOptionUnion default_option {};
 	if (option == nullptr) {
@@ -1984,7 +1985,7 @@ int KYTY_SYSV_ABI Ngs2RackCreate(uintptr_t system_handle, uint32_t rack_id,
 		     rack_id);
 	}
 
-	EXIT_NOT_IMPLEMENTED(option->size < sizeof(Ngs2RackOption));
+	CHECK(option->size < sizeof(Ngs2RackOption));
 
 	LOGF("\t rack_id                = 0x%" PRIx32 "\n"
 	     "\t name                   = %.64s\n"
@@ -2012,33 +2013,33 @@ int KYTY_SYSV_ABI Ngs2RackCreate(uintptr_t system_handle, uint32_t rack_id,
 
 	switch (rack_id) {
 		case 0x1000:
-			EXIT_NOT_IMPLEMENTED(option->size != sizeof(Ngs2SamplerRackOption));
+			CHECK(option->size != sizeof(Ngs2SamplerRackOption));
 			rack->option.sampler = *reinterpret_cast<const Ngs2SamplerRackOption*>(option);
 			rack->type           = Ngs2RackType::Sampler;
 			break;
 		case 0x2000:
-			EXIT_NOT_IMPLEMENTED(option->size != sizeof(Ngs2SubmixerRackOption));
+			CHECK(option->size != sizeof(Ngs2SubmixerRackOption));
 			rack->option.submixer = *reinterpret_cast<const Ngs2SubmixerRackOption*>(option);
 			rack->type            = Ngs2RackType::Submixer;
 			break;
 		case 0x2001:
-			EXIT_NOT_IMPLEMENTED(option->size != sizeof(Ngs2ReverbRackOption));
+			CHECK(option->size != sizeof(Ngs2ReverbRackOption));
 			rack->option.reverb = *reinterpret_cast<const Ngs2ReverbRackOption*>(option);
 			rack->type          = Ngs2RackType::Reverb;
 			break;
 		case 0x3000:
-			EXIT_NOT_IMPLEMENTED(option->size != sizeof(Ngs2MasteringRackOption));
+			CHECK(option->size != sizeof(Ngs2MasteringRackOption));
 			rack->option.mastering = *reinterpret_cast<const Ngs2MasteringRackOption*>(option);
 			rack->type             = Ngs2RackType::Mastering;
 			break;
 		case 0x4002:
-			EXIT_NOT_IMPLEMENTED(option->size != sizeof(Ngs2CustomSubmixerRackOption));
+			CHECK(option->size != sizeof(Ngs2CustomSubmixerRackOption));
 			rack->option.custom_submixer =
 			    *reinterpret_cast<const Ngs2CustomSubmixerRackOption*>(option);
 			rack->type = Ngs2RackType::CustomSubmixer;
 			break;
 		case 0x4001:
-			EXIT_NOT_IMPLEMENTED(option->size != sizeof(Ngs2CustomSamplerRackOption));
+			CHECK(option->size != sizeof(Ngs2CustomSamplerRackOption));
 			rack->option.custom_sampler =
 			    *reinterpret_cast<const Ngs2CustomSamplerRackOption*>(option);
 			rack->type = Ngs2RackType::CustomSampler;
@@ -2071,11 +2072,11 @@ int KYTY_SYSV_ABI Ngs2RackCreateWithAllocator(uintptr_t system_handle, uint32_t 
                                               uintptr_t*                 handle) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(allocator == nullptr);
-	EXIT_NOT_IMPLEMENTED(handle == nullptr);
-	EXIT_NOT_IMPLEMENTED(allocator->alloc_handler == nullptr);
-	EXIT_NOT_IMPLEMENTED(allocator->free_handler == nullptr);
-	EXIT_NOT_IMPLEMENTED(system_handle == 0);
+	CHECK(allocator == nullptr);
+	CHECK(handle == nullptr);
+	CHECK(allocator->alloc_handler == nullptr);
+	CHECK(allocator->free_handler == nullptr);
+	CHECK(system_handle == 0);
 
 	Ngs2RackOptionUnion default_option {};
 	if (option == nullptr) {
@@ -2086,7 +2087,7 @@ int KYTY_SYSV_ABI Ngs2RackCreateWithAllocator(uintptr_t system_handle, uint32_t 
 		     rack_id);
 	}
 
-	EXIT_NOT_IMPLEMENTED(option->size < sizeof(Ngs2RackOption));
+	CHECK(option->size < sizeof(Ngs2RackOption));
 
 	LOGF("\t rack_id                = 0x%" PRIx32 "\n"
 	     "\t name                   = %.64s\n"
@@ -2115,12 +2116,12 @@ int KYTY_SYSV_ABI Ngs2RackCreateWithAllocator(uintptr_t system_handle, uint32_t 
 
 	Ngs2RackQueryBufferSize(rack_id, option, &buf);
 
-	EXIT_NOT_IMPLEMENTED(buf.host_buffer_size == 0);
+	CHECK(buf.host_buffer_size == 0);
 
 	int result = allocator->alloc_handler(&buf);
 
-	EXIT_NOT_IMPLEMENTED(result != OK);
-	EXIT_NOT_IMPLEMENTED(buf.host_buffer == nullptr);
+	CHECK(result != OK);
+	CHECK(buf.host_buffer == nullptr);
 
 	result = Ngs2RackCreate(system_handle, rack_id, option, &buf, handle);
 
@@ -2147,11 +2148,11 @@ int KYTY_SYSV_ABI Ngs2RackLock(uintptr_t rack_handle) {
 	PRINT_NAME();
 	LOGF("\t rack_handle = 0x%016" PRIx64 "\n", static_cast<uint64_t>(rack_handle));
 
-	EXIT_NOT_IMPLEMENTED(rack_handle == 0);
+	CHECK(rack_handle == 0);
 
 	auto* rack = reinterpret_cast<Ngs2RackInternal*>(rack_handle);
 
-	EXIT_NOT_IMPLEMENTED(rack->ngs == nullptr);
+	CHECK(rack->ngs == nullptr);
 
 	rack->ngs->mutex.Lock();
 
@@ -2162,11 +2163,11 @@ int KYTY_SYSV_ABI Ngs2RackUnlock(uintptr_t rack_handle) {
 	PRINT_NAME();
 	LOGF("\t rack_handle = 0x%016" PRIx64 "\n", static_cast<uint64_t>(rack_handle));
 
-	EXIT_NOT_IMPLEMENTED(rack_handle == 0);
+	CHECK(rack_handle == 0);
 
 	auto* rack = reinterpret_cast<Ngs2RackInternal*>(rack_handle);
 
-	EXIT_NOT_IMPLEMENTED(rack->ngs == nullptr);
+	CHECK(rack->ngs == nullptr);
 
 	rack->ngs->mutex.Unlock();
 
@@ -2184,9 +2185,9 @@ int KYTY_SYSV_ABI Ngs2SystemRender(uintptr_t system_handle, const Ngs2RenderBuff
 		LOGF("\t call_count      = %" PRIu32 "\n", log_index + 1);
 	}
 
-	EXIT_NOT_IMPLEMENTED(buffer_info == nullptr);
-	EXIT_NOT_IMPLEMENTED(system_handle == 0);
-	EXIT_NOT_IMPLEMENTED(num_buffer_info == 0);
+	CHECK(buffer_info == nullptr);
+	CHECK(system_handle == 0);
+	CHECK(num_buffer_info == 0);
 
 	auto* ngs = reinterpret_cast<Ngs2Internal*>(system_handle);
 
@@ -2248,7 +2249,7 @@ int KYTY_SYSV_ABI Ngs2ParseWaveformData(const void* data, size_t data_size,
 	LOGF("\t data = 0x%016" PRIx64 ", data_size = 0x%016" PRIx64 "\n",
 	     reinterpret_cast<uint64_t>(data), static_cast<uint64_t>(data_size));
 
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 
 	std::memset(info, 0, sizeof(Ngs2WaveformInfo));
 	info->format.waveform_type = 0x80;
@@ -2268,7 +2269,7 @@ int KYTY_SYSV_ABI Ngs2CalcWaveformBlock(const Ngs2WaveformFormat* format, uint32
 	LOGF("\t format = 0x%016" PRIx64 ", sample_pos = %" PRIu32 ", num_samples = %" PRIu32 "\n",
 	     reinterpret_cast<uint64_t>(format), sample_pos, num_samples);
 
-	EXIT_NOT_IMPLEMENTED(block == nullptr);
+	CHECK(block == nullptr);
 
 	std::memset(block, 0, sizeof(Ngs2WaveformBlock));
 	block->num_samples = num_samples;
@@ -2281,7 +2282,7 @@ int KYTY_SYSV_ABI Ngs2PanInit(Ngs2PanWork* work, const float* speaker_angles, fl
 	LOGF("\t work = 0x%016" PRIx64 ", num_speakers = %" PRIu32 "\n",
 	     reinterpret_cast<uint64_t>(work), num_speakers);
 
-	EXIT_NOT_IMPLEMENTED(work == nullptr);
+	CHECK(work == nullptr);
 
 	std::memset(work, 0, sizeof(Ngs2PanWork));
 	work->unit_angle   = unit_angle;
@@ -2303,7 +2304,7 @@ int KYTY_SYSV_ABI Ngs2PanGetVolumeMatrix(Ngs2PanWork* work, const Ngs2PanParam* 
 	     reinterpret_cast<uint64_t>(work), reinterpret_cast<uint64_t>(params), num_params,
 	     matrix_format);
 
-	EXIT_NOT_IMPLEMENTED(out_volume_matrix == nullptr && num_params != 0);
+	CHECK(out_volume_matrix == nullptr && num_params != 0);
 
 	const auto channels = (matrix_format == 0 ? 2u : std::min<uint32_t>(matrix_format, 8));
 	for (uint32_t p = 0; p < num_params; p++) {
@@ -2318,7 +2319,7 @@ int KYTY_SYSV_ABI Ngs2PanGetVolumeMatrix(Ngs2PanWork* work, const Ngs2PanParam* 
 int KYTY_SYSV_ABI Ngs2GeomResetListenerParam(Ngs2GeomListenerParam* out_listener_param) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(out_listener_param == nullptr);
+	CHECK(out_listener_param == nullptr);
 
 	std::memset(out_listener_param, 0, sizeof(Ngs2GeomListenerParam));
 	out_listener_param->orient_front.z = 1.0f;
@@ -2331,7 +2332,7 @@ int KYTY_SYSV_ABI Ngs2GeomResetListenerParam(Ngs2GeomListenerParam* out_listener
 int KYTY_SYSV_ABI Ngs2GeomResetSourceParam(Ngs2GeomSourceParam* out_source_param) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(out_source_param == nullptr);
+	CHECK(out_source_param == nullptr);
 
 	std::memset(out_source_param, 0, sizeof(Ngs2GeomSourceParam));
 	out_source_param->direction.z                = 1.0f;
@@ -2359,8 +2360,8 @@ int KYTY_SYSV_ABI Ngs2GeomCalcListener(const Ngs2GeomListenerParam* param,
 	PRINT_NAME();
 	LOGF("\t flags = 0x%08" PRIx32 "\n", flags);
 
-	EXIT_NOT_IMPLEMENTED(param == nullptr);
-	EXIT_NOT_IMPLEMENTED(out_work == nullptr);
+	CHECK(param == nullptr);
+	CHECK(out_work == nullptr);
 
 	std::memset(out_work, 0, sizeof(Ngs2GeomListenerWork));
 	for (uint32_t i = 0; i < 4; i++) {
@@ -2379,9 +2380,9 @@ int KYTY_SYSV_ABI Ngs2GeomApply(const Ngs2GeomListenerWork* listener,
 	PRINT_NAME();
 	LOGF("\t flags = 0x%08" PRIx32 "\n", flags);
 
-	EXIT_NOT_IMPLEMENTED(listener == nullptr);
-	EXIT_NOT_IMPLEMENTED(source == nullptr);
-	EXIT_NOT_IMPLEMENTED(out_attrib == nullptr);
+	CHECK(listener == nullptr);
+	CHECK(source == nullptr);
+	CHECK(out_attrib == nullptr);
 
 	std::memset(out_attrib, 0, sizeof(Ngs2GeomAttribute));
 	out_attrib->pitch_ratio         = 1.0f;
@@ -2402,8 +2403,8 @@ int KYTY_SYSV_ABI Ngs2RackGetVoiceHandle(uintptr_t rack_handle, uint32_t voice_i
                                          uintptr_t* handle) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(handle == nullptr);
-	EXIT_NOT_IMPLEMENTED(rack_handle == 0);
+	CHECK(handle == nullptr);
+	CHECK(rack_handle == 0);
 
 	LOGF("\t voice_id = %u\n", voice_id);
 
@@ -2430,8 +2431,8 @@ int KYTY_SYSV_ABI Ngs2RackGetVoiceHandle(uintptr_t rack_handle, uint32_t voice_i
 int KYTY_SYSV_ABI Ngs2VoiceControl(uintptr_t voice_handle, const Ngs2VoiceParamHeader* param_list) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(param_list == nullptr);
-	EXIT_NOT_IMPLEMENTED(voice_handle == 0);
+	CHECK(param_list == nullptr);
+	CHECK(voice_handle == 0);
 
 	auto* voice = reinterpret_cast<Ngs2VoiceInternal*>(voice_handle);
 
@@ -2447,14 +2448,14 @@ int KYTY_SYSV_ABI Ngs2VoiceControl(uintptr_t voice_handle, const Ngs2VoiceParamH
 
 		auto rack_id = param->id >> 16u;
 
-		EXIT_NOT_IMPLEMENTED(((param->id >> 15u) & 0x1u) != 0);
+		CHECK(((param->id >> 15u) & 0x1u) != 0);
 
 		switch (rack_id) {
 			case 0x0000: {
 				auto cid = param->id & 0x7fffu;
 				switch (cid) {
 					case 0x0001: {
-						EXIT_NOT_IMPLEMENTED(param->size != sizeof(Ngs2VoiceMatrixLevelsParam));
+						CHECK(param->size != sizeof(Ngs2VoiceMatrixLevelsParam));
 						const auto* ml = reinterpret_cast<const Ngs2VoiceMatrixLevelsParam*>(param);
 						LOGF("\t matrix_id  = %u\n"
 						     "\t num_levels = %u\n"
@@ -2463,7 +2464,7 @@ int KYTY_SYSV_ABI Ngs2VoiceControl(uintptr_t voice_handle, const Ngs2VoiceParamH
 						break;
 					}
 					case 0x0002: {
-						EXIT_NOT_IMPLEMENTED(param->size != sizeof(Ngs2VoicePortVolumeParam));
+						CHECK(param->size != sizeof(Ngs2VoicePortVolumeParam));
 						const auto* volume =
 						    reinterpret_cast<const Ngs2VoicePortVolumeParam*>(param);
 						LOGF("\t port  = %u\n"
@@ -2472,7 +2473,7 @@ int KYTY_SYSV_ABI Ngs2VoiceControl(uintptr_t voice_handle, const Ngs2VoiceParamH
 						break;
 					}
 					case 0x0003: {
-						EXIT_NOT_IMPLEMENTED(param->size != sizeof(Ngs2VoicePortMatrixParam));
+						CHECK(param->size != sizeof(Ngs2VoicePortMatrixParam));
 						const auto* pm = reinterpret_cast<const Ngs2VoicePortMatrixParam*>(param);
 						LOGF("\t port      = %u\n"
 						     "\t matrix_id = %d\n",
@@ -2480,7 +2481,7 @@ int KYTY_SYSV_ABI Ngs2VoiceControl(uintptr_t voice_handle, const Ngs2VoiceParamH
 						break;
 					}
 					case 0x0004: {
-						EXIT_NOT_IMPLEMENTED(param->size != sizeof(Ngs2VoicePortDelayParam));
+						CHECK(param->size != sizeof(Ngs2VoicePortDelayParam));
 						const auto* delay = reinterpret_cast<const Ngs2VoicePortDelayParam*>(param);
 						LOGF("\t port        = %u\n"
 						     "\t num_samples = %u\n",
@@ -2488,7 +2489,7 @@ int KYTY_SYSV_ABI Ngs2VoiceControl(uintptr_t voice_handle, const Ngs2VoiceParamH
 						break;
 					}
 					case 0x0005: {
-						EXIT_NOT_IMPLEMENTED(param->size != sizeof(Ngs2VoicePatchParam));
+						CHECK(param->size != sizeof(Ngs2VoicePatchParam));
 						const auto* patch = reinterpret_cast<const Ngs2VoicePatchParam*>(param);
 						LOGF("\t connect->port          = %u\n"
 						     "\t connect->dest_input_id = %u\n"
@@ -2497,7 +2498,7 @@ int KYTY_SYSV_ABI Ngs2VoiceControl(uintptr_t voice_handle, const Ngs2VoiceParamH
 						break;
 					}
 					case 0x0006: {
-						EXIT_NOT_IMPLEMENTED(param->size != sizeof(Ngs2VoiceEventParam));
+						CHECK(param->size != sizeof(Ngs2VoiceEventParam));
 						const auto* event = reinterpret_cast<const Ngs2VoiceEventParam*>(param);
 						switch (event->event_id) {
 							case 0x0001: voice->event = Ngs2VoicePlayEvent::Play; break;
@@ -2512,7 +2513,7 @@ int KYTY_SYSV_ABI Ngs2VoiceControl(uintptr_t voice_handle, const Ngs2VoiceParamH
 						break;
 					}
 					case 0x0007: {
-						EXIT_NOT_IMPLEMENTED(param->size != sizeof(Ngs2VoiceCallbackParam));
+						CHECK(param->size != sizeof(Ngs2VoiceCallbackParam));
 						const auto* callback =
 						    reinterpret_cast<const Ngs2VoiceCallbackParam*>(param);
 						voice->callback       = callback->callback;
@@ -2529,12 +2530,12 @@ int KYTY_SYSV_ABI Ngs2VoiceControl(uintptr_t voice_handle, const Ngs2VoiceParamH
 				}
 				break;
 			}
-			case 0x1000: EXIT_NOT_IMPLEMENTED(voice->rack->type != Ngs2RackType::Sampler); break;
-			case 0x2000: EXIT_NOT_IMPLEMENTED(voice->rack->type != Ngs2RackType::Submixer); break;
-			case 0x2001: EXIT_NOT_IMPLEMENTED(voice->rack->type != Ngs2RackType::Reverb); break;
-			case 0x3000: EXIT_NOT_IMPLEMENTED(voice->rack->type != Ngs2RackType::Mastering); break;
+			case 0x1000: CHECK(voice->rack->type != Ngs2RackType::Sampler); break;
+			case 0x2000: CHECK(voice->rack->type != Ngs2RackType::Submixer); break;
+			case 0x2001: CHECK(voice->rack->type != Ngs2RackType::Reverb); break;
+			case 0x3000: CHECK(voice->rack->type != Ngs2RackType::Mastering); break;
 			case 0x4000: {
-				EXIT_NOT_IMPLEMENTED(!Ngs2RackIsCustom(voice->rack->type));
+				CHECK(!Ngs2RackIsCustom(voice->rack->type));
 				auto cid       = param->id & 0xffffu;
 				auto module_id = (cid >> 8u) & 0xffu;
 				auto ctl_id    = (cid >> 5u) & 0x7u;
@@ -2545,10 +2546,10 @@ int KYTY_SYSV_ABI Ngs2VoiceControl(uintptr_t voice_handle, const Ngs2VoiceParamH
 				break;
 			}
 			case 0x4001:
-				EXIT_NOT_IMPLEMENTED(voice->rack->type != Ngs2RackType::CustomSampler);
+				CHECK(voice->rack->type != Ngs2RackType::CustomSampler);
 				break;
 			case 0x4002:
-				EXIT_NOT_IMPLEMENTED(voice->rack->type != Ngs2RackType::CustomSubmixer);
+				CHECK(voice->rack->type != Ngs2RackType::CustomSubmixer);
 				break;
 			default: EXIT("unknown rack_id: 0x%" PRIx32 "\n", rack_id);
 		}
@@ -2579,8 +2580,8 @@ int KYTY_SYSV_ABI Ngs2VoiceGetState(uintptr_t voice_handle, Ngs2VoiceState* stat
                                     size_t state_size) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(state == nullptr);
-	EXIT_NOT_IMPLEMENTED(voice_handle == 0);
+	CHECK(state == nullptr);
+	CHECK(voice_handle == 0);
 
 	auto* voice = reinterpret_cast<Ngs2VoiceInternal*>(voice_handle);
 
@@ -2622,8 +2623,8 @@ int KYTY_SYSV_ABI Ngs2VoiceGetState(uintptr_t voice_handle, Ngs2VoiceState* stat
 int KYTY_SYSV_ABI Ngs2VoiceGetStateFlags(uintptr_t voice_handle, uint32_t* state_flags) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(state_flags == nullptr);
-	EXIT_NOT_IMPLEMENTED(voice_handle == 0);
+	CHECK(state_flags == nullptr);
+	CHECK(voice_handle == 0);
 
 	auto* voice = reinterpret_cast<Ngs2VoiceInternal*>(voice_handle);
 

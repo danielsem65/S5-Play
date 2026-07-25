@@ -38,6 +38,7 @@
 #include <string>
 #include <vector>
 
+
 namespace Libs::Network {
 
 class Network {
@@ -1157,8 +1158,8 @@ int KYTY_SYSV_ABI NetPoolCreate(const char* name, int size, int flags) {
 
 	EXIT_IF(g_net == nullptr);
 
-	EXIT_NOT_IMPLEMENTED(flags != 0);
-	EXIT_NOT_IMPLEMENTED(size == 0);
+	CHECK(flags != 0);
+	CHECK(size == 0);
 
 	int id = g_net->PoolCreate(name, size);
 
@@ -1327,10 +1328,10 @@ int KYTY_SYSV_ABI NetEtherNtostr(const NetEtherAddr* n, char* str, size_t len) {
 
 	NetEtherAddr zero {};
 
-	EXIT_NOT_IMPLEMENTED(len != 18);
-	EXIT_NOT_IMPLEMENTED(n == nullptr);
-	EXIT_NOT_IMPLEMENTED(str == nullptr);
-	EXIT_NOT_IMPLEMENTED(memcmp(n->data, zero.data, sizeof(zero.data)) != 0);
+	CHECK(len != 18);
+	CHECK(n == nullptr);
+	CHECK(str == nullptr);
+	CHECK(memcmp(n->data, zero.data, sizeof(zero.data)) != 0);
 
 	strcpy(str, "00:00:00:00:00:00"); // NOLINT
 
@@ -1340,8 +1341,8 @@ int KYTY_SYSV_ABI NetEtherNtostr(const NetEtherAddr* n, char* str, size_t len) {
 int KYTY_SYSV_ABI NetGetMacAddress(NetEtherAddr* addr, int flags) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(addr == nullptr);
-	EXIT_NOT_IMPLEMENTED(flags != 0);
+	CHECK(addr == nullptr);
+	CHECK(flags != 0);
 
 	memset(addr->data, 0, sizeof(addr->data));
 
@@ -2113,7 +2114,7 @@ int KYTY_SYSV_ABI SslInit(uint64_t pool_size) {
 
 	EXIT_IF(g_net == nullptr);
 
-	EXIT_NOT_IMPLEMENTED(pool_size == 0);
+	CHECK(pool_size == 0);
 
 	auto id = g_net->SslInit(pool_size);
 
@@ -2225,7 +2226,7 @@ int KYTY_SYSV_ABI HttpInit(int memid, int ssl_ctx_id, uint64_t pool_size) {
 
 	EXIT_IF(g_net == nullptr);
 
-	EXIT_NOT_IMPLEMENTED(pool_size == 0);
+	CHECK(pool_size == 0);
 
 	auto id = g_net->HttpInit(memid, Network::Id(ssl_ctx_id), pool_size);
 
@@ -2443,7 +2444,7 @@ int KYTY_SYSV_ABI HttpAddRequestHeader(int id, const char* name, const char* val
 	     "\t mode  = %u\n",
 	     id, name, value, mode);
 
-	EXIT_NOT_IMPLEMENTED(mode != 0 && mode != 1);
+	CHECK(mode != 0 && mode != 1);
 
 	if (!g_net->HttpAddRequestHeader(Network::Id(id), name, value, mode == 1)) {
 		return HTTP_ERROR_INVALID_ID;
@@ -2459,9 +2460,9 @@ int KYTY_SYSV_ABI HttpCreateEpoll(int http_ctx_id, HttpEpollHandle* eh) {
 
 	EXIT_IF(g_net == nullptr);
 
-	EXIT_NOT_IMPLEMENTED(eh == nullptr);
+	CHECK(eh == nullptr);
 
-	EXIT_NOT_IMPLEMENTED(!g_net->HttpValid(Network::Id(http_ctx_id)));
+	CHECK(!g_net->HttpValid(Network::Id(http_ctx_id)));
 
 	*eh = new HttpEpoll;
 
@@ -2477,9 +2478,9 @@ int KYTY_SYSV_ABI HttpDestroyEpoll(int http_ctx_id, HttpEpollHandle eh) {
 
 	EXIT_IF(g_net == nullptr);
 
-	EXIT_NOT_IMPLEMENTED(eh == nullptr);
+	CHECK(eh == nullptr);
 
-	EXIT_NOT_IMPLEMENTED(!g_net->HttpValid(Network::Id(http_ctx_id)));
+	CHECK(!g_net->HttpValid(Network::Id(http_ctx_id)));
 
 	delete eh;
 
@@ -2491,9 +2492,9 @@ int KYTY_SYSV_ABI HttpSetEpoll(int id, HttpEpollHandle eh, void* user_arg) {
 
 	LOGF("\t id = %d\n", id);
 
-	EXIT_NOT_IMPLEMENTED(eh == nullptr);
+	CHECK(eh == nullptr);
 
-	EXIT_NOT_IMPLEMENTED(!g_net->HttpValidRequest(Network::Id(id)));
+	CHECK(!g_net->HttpValidRequest(Network::Id(id)));
 
 	eh->request_id = Network::Id(id);
 	eh->user_arg   = user_arg;
@@ -2506,7 +2507,7 @@ int KYTY_SYSV_ABI HttpUnsetEpoll(int id) {
 
 	LOGF("\t id = %d\n", id);
 
-	EXIT_NOT_IMPLEMENTED(!g_net->HttpValidRequest(Network::Id(id)));
+	CHECK(!g_net->HttpValidRequest(Network::Id(id)));
 
 	return OK;
 }
@@ -3034,8 +3035,8 @@ void KYTY_SYSV_ABI NetCtlTerm() {
 int KYTY_SYSV_ABI NetCtlGetNatInfo(NetCtlNatInfo* nat_info) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(nat_info == nullptr);
-	EXIT_NOT_IMPLEMENTED(nat_info->size != sizeof(NetCtlNatInfo));
+	CHECK(nat_info == nullptr);
+	CHECK(nat_info->size != sizeof(NetCtlNatInfo));
 
 	nat_info->stunStatus        = 0;
 	nat_info->natType           = 0;
@@ -3147,7 +3148,7 @@ int KYTY_SYSV_ABI NetCtlGetResult(int event_type, int* error_code) {
 int KYTY_SYSV_ABI NetCtlGetInfo(int code, NetCtlInfo* info) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(info == nullptr);
 
 	memset(info, 0, sizeof(NetCtlInfo));
 
@@ -3353,8 +3354,8 @@ int KYTY_SYSV_ABI NpCheckCallback() {
 int KYTY_SYSV_ABI NpSetNpTitleId(const NpTitleId* title_id, const NpTitleSecret* title_secret) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(title_id == nullptr);
-	EXIT_NOT_IMPLEMENTED(title_secret == nullptr);
+	CHECK(title_id == nullptr);
+	CHECK(title_secret == nullptr);
 
 	LOGF("\t title_id = %.12s\n"
 	     "\t title_secret = %s\n",
@@ -3366,8 +3367,8 @@ int KYTY_SYSV_ABI NpSetNpTitleId(const NpTitleId* title_id, const NpTitleSecret*
 int KYTY_SYSV_ABI NpSetContentRestriction(const NpContentRestriction* restriction) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(restriction == nullptr);
-	EXIT_NOT_IMPLEMENTED(restriction->size != sizeof(NpContentRestriction));
+	CHECK(restriction == nullptr);
+	CHECK(restriction->size != sizeof(NpContentRestriction));
 
 	LOGF("\t default_age_restriction = %" PRIi8 "\n"
 	     "\t age_restriction_count   = %" PRIi32 "\n",
@@ -3422,10 +3423,10 @@ int KYTY_SYSV_ABI NpGetNpId(int user_id, NpId* np_id) {
 
 	LOGF("\t user_id = %d\n", user_id);
 
-	EXIT_NOT_IMPLEMENTED(np_id == nullptr);
+	CHECK(np_id == nullptr);
 
 	// int s = snprintf(np_id->handle.data, 16, "S5Play");
-	// EXIT_NOT_IMPLEMENTED(s >= 16);
+	// CHECK(s >= 16);
 	// np_id->handle.term = 0;
 	std::memset(np_id, 0, sizeof(*np_id));
 
@@ -3438,10 +3439,10 @@ int KYTY_SYSV_ABI NpGetOnlineId(int user_id, NpOnlineId* online_id) {
 
 	LOGF("\t user_id = %d\n", user_id);
 
-	EXIT_NOT_IMPLEMENTED(online_id == nullptr);
+	CHECK(online_id == nullptr);
 
 	// int s = snprintf(online_id->data, 16, "S5Play");
-	// EXIT_NOT_IMPLEMENTED(s >= 16);
+	// CHECK(s >= 16);
 	// online_id->term = 0;
 	std::memset(online_id, 0, sizeof(*online_id));
 
@@ -3454,7 +3455,7 @@ int KYTY_SYSV_ABI NpGetAccountIdA(int user_id, uint64_t* account_id) {
 
 	LOGF("\t user_id = %d\n", user_id);
 
-	EXIT_NOT_IMPLEMENTED(account_id == nullptr);
+	CHECK(account_id == nullptr);
 
 	// *account_id = 0x00000000feedfaceull;
 	*account_id = 0;
@@ -3468,7 +3469,7 @@ int KYTY_SYSV_ABI NpGetAccountCountryA(int user_id, void* country_code) {
 
 	LOGF("\t user_id = %d\n", user_id);
 
-	EXIT_NOT_IMPLEMENTED(country_code == nullptr);
+	CHECK(country_code == nullptr);
 
 	auto* code = static_cast<NpCountryCode*>(country_code);
 	std::memset(code, 0, sizeof(*code));
@@ -3570,9 +3571,9 @@ int KYTY_SYSV_ABI NpAbortRequest(int req_id) {
 int KYTY_SYSV_ABI NpCheckNpAvailability(int req_id, const char* user, void* result) {
 	PRINT_NAME();
 
-	// EXIT_NOT_IMPLEMENTED(req_id <= 0);
-	// EXIT_NOT_IMPLEMENTED(user == nullptr);
-	// EXIT_NOT_IMPLEMENTED(result != nullptr);
+	// CHECK(req_id <= 0);
+	// CHECK(user == nullptr);
+	// CHECK(result != nullptr);
 
 	LOGF("\t req_id = %d\n"
 	     "\t user   = %s\n",
@@ -3600,7 +3601,7 @@ int KYTY_SYSV_ABI NpCheckNpAvailability(int req_id, const char* user, void* resu
 int KYTY_SYSV_ABI NpCheckNpReachability(int req_id, int user_id) {
 	PRINT_NAME();
 
-	// EXIT_NOT_IMPLEMENTED(req_id <= 0);
+	// CHECK(req_id <= 0);
 
 	LOGF("\t req_id  = %d\n", req_id);
 	LOGF("\t user_id = %d\n", user_id);
@@ -3696,7 +3697,7 @@ int KYTY_SYSV_ABI NpCheckPremium(int req_id, const NpCheckPremiumParameter* para
 int KYTY_SYSV_ABI NpGetState(int user_id, uint32_t* state) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(state == nullptr);
+	CHECK(state == nullptr);
 
 	LOGF("\t user_id = %d\n", user_id);
 

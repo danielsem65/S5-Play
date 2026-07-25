@@ -55,7 +55,7 @@ static KYTY_SYSV_ABI int UserServiceInitialize2() {
 static KYTY_SYSV_ABI int UserServiceGetInitialUser(int* user_id) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(user_id == nullptr);
+	CHECK(user_id == nullptr);
 
 	*user_id = 1000;
 
@@ -65,7 +65,7 @@ static KYTY_SYSV_ABI int UserServiceGetInitialUser(int* user_id) {
 static KYTY_SYSV_ABI int UserServiceGetEvent(SceUserServiceEvent* event) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(event == nullptr);
+	CHECK(event == nullptr);
 
 	static bool logged_in = false;
 
@@ -82,7 +82,7 @@ static KYTY_SYSV_ABI int UserServiceGetEvent(SceUserServiceEvent* event) {
 static KYTY_SYSV_ABI int UserServiceGetLoginUserIdList(UserServiceLoginUserIdList* user_id_list) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(user_id_list == nullptr);
+	CHECK(user_id_list == nullptr);
 
 	user_id_list->user_id[0] = 1000;
 	user_id_list->user_id[1] = -1;
@@ -93,12 +93,12 @@ static KYTY_SYSV_ABI int UserServiceGetLoginUserIdList(UserServiceLoginUserIdLis
 }
 
 static KYTY_SYSV_ABI int UserServiceGetUserName(int user_id, char* name, size_t size) {
-	EXIT_NOT_IMPLEMENTED(user_id != 1000);
-	EXIT_NOT_IMPLEMENTED(size < 5);
+	CHECK(user_id != 1000);
+	CHECK(size < 5);
 
 	int s = snprintf(name, size, "%s", "S5Play");
 
-	EXIT_NOT_IMPLEMENTED(static_cast<size_t>(s) >= size);
+	CHECK(static_cast<size_t>(s) >= size);
 
 	return OK;
 }

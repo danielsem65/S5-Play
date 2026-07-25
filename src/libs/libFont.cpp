@@ -937,8 +937,8 @@ static uint32_t normalize_bitmap_font_code(uint32_t code) {
 
 static void init_image(std::array<uint8_t, FONT_BITMAP_MAX_DIM * FONT_BITMAP_MAX_DIM>* image,
                        FontTransImage* trans_image, uint32_t code, const FontState* font) {
-	EXIT_NOT_IMPLEMENTED(image == nullptr);
-	EXIT_NOT_IMPLEMENTED(trans_image == nullptr);
+	CHECK(image == nullptr);
+	CHECK(trans_image == nullptr);
 
 	if (init_stb_image(image, trans_image, code, const_cast<FontState*>(font))) {
 		return;

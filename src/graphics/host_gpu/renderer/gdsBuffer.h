@@ -14,7 +14,7 @@ namespace Libs::Graphics {
 class GdsBuffer {
 public:
 	explicit GdsBuffer(GraphicContext& graphics): m_graphics(graphics) {
-		EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+		CHECK(!Common::Thread::IsMainThread());
 	}
 	~GdsBuffer() { KYTY_NOT_IMPLEMENTED; }
 	KYTY_CLASS_NO_COPY(GdsBuffer);

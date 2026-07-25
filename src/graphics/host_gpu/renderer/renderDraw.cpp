@@ -45,6 +45,7 @@
 
 namespace Libs::Graphics {
 
+
 int32_t ResolveVertexOffset(uint32_t index_offset, const ShaderVertexInputInfo& vs_input_info) {
 	if (index_offset != 0 || !vs_input_info.fetch_embedded) {
 		return static_cast<int32_t>(index_offset);
@@ -666,8 +667,8 @@ static bool PrepareDrawRenderState(uint64_t submit_id, RenderCommandBuffer& buff
 		                   draw.index_count, draw.flags);
 		return false;
 	}
-	EXIT_NOT_IMPLEMENTED(state.framebuffer == nullptr);
-	EXIT_NOT_IMPLEMENTED(state.framebuffer->render_pass == nullptr);
+	CHECK(state.framebuffer == nullptr);
+	CHECK(state.framebuffer->render_pass == nullptr);
 
 	state.vk_buffer = buffer.Handle();
 
@@ -735,7 +736,7 @@ static void BindDrawVertexBuffers(uint64_t submit_id, RenderCommandBuffer& buffe
 			vertices     = &binding.buffer;
 			offset       = binding.offset;
 		}
-		EXIT_NOT_IMPLEMENTED(vertices == nullptr);
+		CHECK(vertices == nullptr);
 
 		vk_buffer.bindVertexBuffers(i, 1, &vertices->buffer, &offset);
 	}
@@ -828,7 +829,7 @@ static void EmitDrawPrimitives(const HW::UserConfig& ucfg, vk::CommandBuffer vk_
 				vk_buffer.drawIndexed(draw.index_count, draw.instance_count, 0, emit.vertex_offset,
 				                      draw.first_instance);
 			} else {
-				EXIT_NOT_IMPLEMENTED(
+				CHECK(
 				    !IsHostExpandedRectListDrawSupported(vs_input_info, draw, emit));
 				vk_buffer.draw(emit.draw_vertex_count, draw.instance_count, emit.first_vertex,
 				               draw.first_instance);
@@ -839,11 +840,11 @@ static void EmitDrawPrimitives(const HW::UserConfig& ucfg, vk::CommandBuffer vk_
 				EXIT("unknown primitive type: %u\n", ucfg.GetPrimType());
 			}
 			// Sarah
-			EXIT_NOT_IMPLEMENTED(!(draw.index_count == 3 && vs_input_info.buffers_num == 0));
+			CHECK(!(draw.index_count == 3 && vs_input_info.buffers_num == 0));
 			vk_buffer.draw(4, draw.instance_count, emit.first_vertex, draw.first_instance);
 			break;
 		case Prospero::PrimitiveType::kQuadListLegacy:
-			EXIT_NOT_IMPLEMENTED((draw.index_count & 0x3u) != 0);
+			CHECK((draw.index_count & 0x3u) != 0);
 			for (uint32_t i = 0; i < draw.index_count; i += 4) {
 				if (emit.indexed) {
 					vk_buffer.drawIndexed(4, draw.instance_count, i, emit.vertex_offset,
@@ -884,7 +885,7 @@ static void ExecutePreparedDraw(uint64_t submit_id, RenderCommandBuffer& buffer,
 		                                                       state.color_count, state.depth_info);
 		SetDynamicParams(buffer, state.vk_buffer, dynamic_params);
 
-		// EXIT_NOT_IMPLEMENTED(vs_input_info.buffers_num > 1);
+		// CHECK(vs_input_info.buffers_num > 1);
 		BindDrawVertexBuffers(submit_id, buffer, draw, state.vk_buffer, state.vs_input_info);
 
 		LogDrawPhase(draw.name, "BindDescriptorsVS");
@@ -1034,8 +1035,8 @@ void RenderDrawIndex(uint64_t submit_id, RenderCommandBuffer& buffer, uint32_t i
 		default: EXIT("unknown index_type_and_size: %u\n", index_type_and_size);
 	}
 
-	EXIT_NOT_IMPLEMENTED(flags != 0);
-	EXIT_NOT_IMPLEMENTED(type != 1);
+	CHECK(flags != 0);
+	CHECK(type != 1);
 	if (instance_count == 0) {
 		instance_count = 1;
 	}
@@ -1045,7 +1046,7 @@ void RenderDrawIndex(uint64_t submit_id, RenderCommandBuffer& buffer, uint32_t i
 	                            instance_count, first_instance};
 	std::vector<uint16_t> expanded_indices;
 	if (expand_index8_to_u16) {
-		EXIT_NOT_IMPLEMENTED(index_addr == nullptr);
+		CHECK(index_addr == nullptr);
 		const auto* src = static_cast<const uint8_t*>(index_addr);
 		expanded_indices.resize(index_count);
 		for (uint32_t i = 0; i < index_count; i++) {
@@ -1135,7 +1136,7 @@ void RenderDrawIndexAuto(uint64_t submit_id, RenderCommandBuffer& buffer, uint32
 
 	hw_check(buffer);
 
-	EXIT_NOT_IMPLEMENTED(flags != 0);
+	CHECK(flags != 0);
 	if (instance_count == 0) {
 		instance_count = 1;
 	}

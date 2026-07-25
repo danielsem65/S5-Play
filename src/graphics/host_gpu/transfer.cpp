@@ -92,7 +92,7 @@ void WaitForQueueIdle() {
 		LOGF("vkQueueWaitIdle failed: %s (%d)\n", VulkanToString(result).c_str(),
 		     static_cast<int>(result));
 	}
-	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+	CHECK(result != vk::Result::eSuccess);
 }
 
 static void SetImageLayout(vk::CommandBuffer buffer, VulkanImage& dst_image, uint32_t base_level,

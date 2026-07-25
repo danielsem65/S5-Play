@@ -55,6 +55,8 @@ int KYTY_SYSV_ABI     KernelGetdents(int fd, char* buf, int nbytes);
 int KYTY_SYSV_ABI     KernelMkdir(const char* path, uint16_t mode);
 int KYTY_SYSV_ABI     KernelRmdir(const char* path);
 int KYTY_SYSV_ABI     KernelCheckReachability(const char* path);
+int KYTY_SYSV_ABI     KernelFsync(int d);
+void KYTY_SYSV_ABI    KernelSync();
 
 } // namespace Libs::LibKernel::FileSystem
 

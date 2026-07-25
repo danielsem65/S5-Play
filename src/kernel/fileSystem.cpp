@@ -25,6 +25,7 @@
 
 namespace Libs::LibKernel::FileSystem {
 
+
 LIB_NAME("libkernel", "libkernel");
 
 constexpr int DESCRIPTOR_MIN = 3;
@@ -41,7 +42,7 @@ public:
 		std::string           point;
 	};
 
-	MountPoints() { EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread()); }
+	MountPoints() { CHECK(!Common::Thread::IsMainThread()); }
 	virtual ~MountPoints() { KYTY_NOT_IMPLEMENTED; }
 
 	KYTY_CLASS_NO_COPY(MountPoints);
@@ -73,7 +74,7 @@ struct File {
 
 class FileDescriptors {
 public:
-	FileDescriptors() { EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread()); }
+	FileDescriptors() { CHECK(!Common::Thread::IsMainThread()); }
 	virtual ~FileDescriptors() { KYTY_NOT_IMPLEMENTED; }
 
 	KYTY_CLASS_NO_COPY(FileDescriptors);
@@ -82,6 +83,7 @@ public:
 	void  DeleteDescriptor(int d);
 	File* GetFile(int d);
 	File* GetFile(const std::filesystem::path& real_name);
+	void  FlushAll();
 	void  CloseAll();
 
 private:
@@ -189,6 +191,16 @@ void FileDescriptors::CloseAll() {
 			f->f.Close();
 			delete f;
 			f = nullptr;
+		}
+	}
+}
+
+void FileDescriptors::FlushAll() {
+	Common::LockGuard lock(m_mutex);
+
+	for (auto& f: m_files) {
+		if (f != nullptr && f->opened && !f->directory) {
+			f->f.Flush();
 		}
 	}
 }
@@ -338,8 +350,8 @@ int KYTY_SYSV_ABI KernelOpen(const char* path, int flags, uint16_t mode) {
 		default: EXIT("invalid flag_u: %u\n", flags_u);
 	}
 
-	EXIT_NOT_IMPLEMENTED(directory && rw_mode != Common::File::Mode::Read);
-	EXIT_NOT_IMPLEMENTED(directory && (trunc || creat));
+	CHECK(directory && rw_mode != Common::File::Mode::Read);
+	CHECK(directory && (trunc || creat));
 
 	int   descriptor = g_files->CreateDescriptor();
 	auto* file       = g_files->GetFile(descriptor);
@@ -377,8 +389,8 @@ int KYTY_SYSV_ABI KernelOpen(const char* path, int flags, uint16_t mode) {
 			return KERNEL_ERROR_ENOTDIR;
 		}
 
-		EXIT_NOT_IMPLEMENTED(!directory && rw_mode != Common::File::Mode::Read);
-		EXIT_NOT_IMPLEMENTED(!directory && (trunc || creat));
+		CHECK(!directory && rw_mode != Common::File::Mode::Read);
+		CHECK(!directory && (trunc || creat));
 
 		file->dents        = Common::File::GetDirEntries(file->real_name);
 		file->dents_offset = 0;
@@ -485,11 +497,11 @@ int64_t KYTY_SYSV_ABI KernelRead(int d, void* buf, size_t nbytes) {
 		return KERNEL_ERROR_EBADF;
 	}
 
-	EXIT_NOT_IMPLEMENTED(file->directory);
+	CHECK(file->directory);
 
 	EXIT_IF(!file->opened);
 
-	EXIT_NOT_IMPLEMENTED(nbytes > UINT_MAX);
+	CHECK(nbytes > UINT_MAX);
 
 	if (file->special == SpecialFile::Random) {
 		FillRandomBuffer(buf, nbytes);
@@ -557,12 +569,12 @@ int64_t KYTY_SYSV_ABI KernelWrite(int d, const void* buf, size_t nbytes) {
 		return KERNEL_ERROR_EBADF;
 	}
 
-	EXIT_NOT_IMPLEMENTED(file->directory);
-	EXIT_NOT_IMPLEMENTED(file->special != SpecialFile::None);
+	CHECK(file->directory);
+	CHECK(file->special != SpecialFile::None);
 
 	EXIT_IF(!file->opened);
 
-	EXIT_NOT_IMPLEMENTED(nbytes > UINT_MAX);
+	CHECK(nbytes > UINT_MAX);
 
 	file->mutex.Lock();
 
@@ -609,11 +621,11 @@ int64_t KYTY_SYSV_ABI KernelPread(int d, void* buf, size_t nbytes, int64_t offse
 		return KERNEL_ERROR_EBADF;
 	}
 
-	EXIT_NOT_IMPLEMENTED(file->directory);
+	CHECK(file->directory);
 
 	EXIT_IF(!file->opened);
 
-	EXIT_NOT_IMPLEMENTED(nbytes > UINT_MAX);
+	CHECK(nbytes > UINT_MAX);
 
 	if (file->special == SpecialFile::Random) {
 		FillRandomBuffer(buf, nbytes);
@@ -673,12 +685,12 @@ int64_t KYTY_SYSV_ABI KernelPwrite(int d, const void* buf, size_t nbytes, int64_
 		return KERNEL_ERROR_EBADF;
 	}
 
-	EXIT_NOT_IMPLEMENTED(file->directory);
-	EXIT_NOT_IMPLEMENTED(file->special != SpecialFile::None);
+	CHECK(file->directory);
+	CHECK(file->special != SpecialFile::None);
 
 	EXIT_IF(!file->opened);
 
-	EXIT_NOT_IMPLEMENTED(nbytes > UINT_MAX);
+	CHECK(nbytes > UINT_MAX);
 
 	file->mutex.Lock();
 
@@ -705,6 +717,37 @@ int64_t KYTY_SYSV_ABI KernelPwrite(int d, const void* buf, size_t nbytes, int64_
 	return bytes_written;
 }
 
+int KYTY_SYSV_ABI KernelFsync(int d) {
+	PRINT_NAME();
+
+	if (d < DESCRIPTOR_MIN) {
+		return KERNEL_ERROR_EPERM;
+	}
+
+	auto* file = g_files->GetFile(d);
+
+	if (file == nullptr) {
+		return KERNEL_ERROR_EBADF;
+	}
+
+	file->mutex.Lock();
+
+	if (!file->opened || file->directory) {
+		file->mutex.Unlock();
+		return KERNEL_ERROR_EBADF;
+	}
+
+	bool result = file->f.Flush();
+
+	file->mutex.Unlock();
+
+	if (!result) {
+		return KERNEL_ERROR_EIO;
+	}
+
+	return OK;
+}
+
 int64_t KYTY_SYSV_ABI KernelLseek(int d, int64_t offset, int whence) {
 	PRINT_NAME();
 
@@ -718,7 +761,7 @@ int64_t KYTY_SYSV_ABI KernelLseek(int d, int64_t offset, int whence) {
 		return KERNEL_ERROR_EBADF;
 	}
 
-	EXIT_NOT_IMPLEMENTED(file->directory);
+	CHECK(file->directory);
 
 	EXIT_IF(!file->opened);
 
@@ -740,7 +783,7 @@ int64_t KYTY_SYSV_ABI KernelLseek(int d, int64_t offset, int whence) {
 		whence = 0;
 	}
 
-	EXIT_NOT_IMPLEMENTED(whence != 0);
+	CHECK(whence != 0);
 
 	if (offset < 0) {
 		return KERNEL_ERROR_EINVAL;
@@ -786,7 +829,7 @@ int KYTY_SYSV_ABI KernelStat(const char* path, FileStat* sb) {
 		return KERNEL_ERROR_ENOENT;
 	}
 
-	EXIT_NOT_IMPLEMENTED(is_dir && is_file);
+	CHECK(is_dir && is_file);
 
 	FileStat stat {};
 	stat.st_mode = 0000777u | (is_dir ? 0040000u : 0100000u);
@@ -936,8 +979,8 @@ int KYTY_SYSV_ABI KernelRename(const char* from, const char* to) {
 	auto real_from = g_mount_points->GetRealFilename(from_path);
 	auto real_to   = g_mount_points->GetRealFilename(to_path);
 
-	EXIT_NOT_IMPLEMENTED(g_files->GetFile(real_from) != nullptr);
-	EXIT_NOT_IMPLEMENTED(g_files->GetFile(real_to) != nullptr);
+	CHECK(g_files->GetFile(real_from) != nullptr);
+	CHECK(g_files->GetFile(real_to) != nullptr);
 
 	if (!Common::File::IsFileExisting(real_from)) {
 		return KERNEL_ERROR_ENOENT;
@@ -1004,7 +1047,7 @@ int KYTY_SYSV_ABI KernelGetdirentries(int fd, char* buf, int nbytes, int64_t* ba
 	for (const auto& entry: file->dents) {
 		const auto& str      = entry.name;
 		auto        str_size = str.size();
-		EXIT_NOT_IMPLEMENTED(str_size > 255);
+		CHECK(str_size > 255);
 
 		uint64_t reclen = AlignUp(DIRENT_META_SIZE + str_size + 1, 4);
 		if (dirent_offset + reclen > next_ceiling) {
@@ -1168,6 +1211,12 @@ int KYTY_SYSV_ABI KernelCheckReachability(const char* path) {
 	}
 
 	return KERNEL_ERROR_ENOENT;
+}
+
+void KYTY_SYSV_ABI KernelSync() {
+	PRINT_NAME();
+
+	g_files->FlushAll();
 }
 
 } // namespace Libs::LibKernel::FileSystem

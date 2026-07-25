@@ -169,7 +169,7 @@ void TriggerAgcUserInterrupt() {
 	auto tsc    = LibKernel::KernelReadTsc();
 	auto result = LibKernel::EventQueue::KernelTriggerUserEventForAll(AGC_USER_INTERRUPT_EVENT,
 	                                                                  reinterpret_cast<void*>(tsc));
-	EXIT_NOT_IMPLEMENTED(result != OK && result != LibKernel::KERNEL_ERROR_ENOENT);
+	CHECK(result != OK && result != LibKernel::KERNEL_ERROR_ENOENT);
 }
 
 void TriggerEopEvent(uint32_t context_id) {
@@ -346,7 +346,7 @@ static void EopEventResetFunc(LibKernel::EventQueue::KernelEqueueEvent* event) {
 static void EopEventDeleteFunc(LibKernel::EventQueue::KernelEqueue       eq,
                                LibKernel::EventQueue::KernelEqueueEvent* event) {
 	EXIT_IF(event == nullptr);
-	EXIT_NOT_IMPLEMENTED(event->event.filter != LibKernel::EventQueue::KERNEL_EVFILT_GRAPHICS);
+	CHECK(event->event.filter != LibKernel::EventQueue::KERNEL_EVFILT_GRAPHICS);
 	if (event->event.ident == GRAPHICS_EVENT_QUEUED_GRAPHICS_INTERRUPT ||
 	    event->event.ident == GRAPHICS_EVENT_EOP) {
 		GetRenderContext().DeleteEopEq(eq, static_cast<int>(event->event.ident));

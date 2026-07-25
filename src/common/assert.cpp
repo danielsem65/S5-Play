@@ -4,6 +4,7 @@
 #include "common/logging/log.h"
 #include "common/subsystems.h"
 
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <fmt/format.h>
@@ -45,6 +46,16 @@ int DbgExitIfHandler(const char* expr, const char* file, int line) {
 
 int DbgNotImplementedHandler(const char* expr, const char* file, int line) {
 	return DbgReport("--- Fatal Error ---", fmt::format("Not implemented ({})", expr), file, line);
+}
+
+static std::atomic_uint g_not_implemented_check_count = 0;
+
+int DbgNotImplementedCheck(const char* expr, const char* file, int line) {
+	if (g_not_implemented_check_count.fetch_add(1, std::memory_order_relaxed) < 128) {
+		Log::Write(Log::Color::BrightYellow,
+		           fmt::format("--- Not Implemented ---\n({}) in {}:{}\n", expr, file, line));
+	}
+	return 0;
 }
 
 int DbgExitHandler(const char* file, int line, std::string_view text) {

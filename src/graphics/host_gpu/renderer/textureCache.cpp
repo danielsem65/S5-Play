@@ -604,7 +604,7 @@ struct TextureCache::ReadbackWorker {
 		std::vector<GpuTileInfo> gpu_infos;
 		TileBlockLayout          depth_block {};
 		TileBlockLayout          stencil_block {};
-		EXIT_NOT_IMPLEMENTED(
+		CHECK(
 		    !TileGetBlockLayout(TileBlockFamily::Depth64KB, info.bytes_per_element, depth_block) ||
 		    (has_stencil && !TileGetBlockLayout(TileBlockFamily::Depth64KB, 1, stencil_block)));
 		gpu_infos.reserve(regions.size());
@@ -743,7 +743,7 @@ struct TextureCache::ReadbackWorker {
 			                        ? cached.info.format
 			                        : ImageOps::RenderTargetTransferFormat(info.bytes_per_element);
 			guest.resize(info.size);
-			EXIT_NOT_IMPLEMENTED(!TextureBuildGpuTileInfos(info.size, tiled_regions, tiled_layout,
+			CHECK(!TextureBuildGpuTileInfos(info.size, tiled_regions, tiled_layout,
 			                                               format, layers, info.levels, infos));
 			Transfer::DownloadTiledImage(guest.data(), info.size, info.size, infos, regions,
 			                             *cached.image, cached.image->layout);
@@ -3026,7 +3026,7 @@ void TextureCache::SynchronizeColorImageToBufferLocked(CachedImage& cached, uint
 	if (tiled && !bgra16) {
 		std::vector<GpuTileInfo> infos;
 		const uint32_t           depth = storage ? cached.info.depth : target.layers;
-		EXIT_NOT_IMPLEMENTED(!TextureBuildGpuTileInfos(target.size, tiled_regions, tiled_layout,
+		CHECK(!TextureBuildGpuTileInfos(target.size, tiled_regions, tiled_layout,
 		                                               tiled_format, depth, target.levels, infos));
 		m_buffer_transition_guest.resize(target.size);
 		Transfer::DownloadTiledImage(m_buffer_transition_guest.data(), target.size, target.size,
@@ -3039,7 +3039,7 @@ void TextureCache::SynchronizeColorImageToBufferLocked(CachedImage& cached, uint
 		                        cached.image->layout);
 		ImageOps::SwapVideoOutBgra16(linear_data.data(), target.size);
 		TileBlockLayout block {};
-		EXIT_NOT_IMPLEMENTED(!TileGetBlockLayout(TileBlockFamily::RenderTarget64KB,
+		CHECK(!TileGetBlockLayout(TileBlockFamily::RenderTarget64KB,
 		                                         target.bytes_per_element, block));
 		const GpuTileInfo info {
 		    block.family, block.bytes_per_element, 0, target.size, 0, target.size, 0,
@@ -3104,7 +3104,7 @@ void TextureCache::SynchronizeDepthImageToBufferLocked(CachedImage& cached, uint
 	const auto regions = Transfer::MakeLayeredImageBufferCopies(
 	    1, info.size, info.pitch, info.width, info.height, vk::ImageAspectFlagBits::eDepth);
 	TileBlockLayout block {};
-	EXIT_NOT_IMPLEMENTED(
+	CHECK(
 	    !TileGetBlockLayout(TileBlockFamily::Depth64KB, info.bytes_per_element, block));
 	const GpuTileInfo tile_info {block.family,
 	                             block.bytes_per_element,

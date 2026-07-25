@@ -36,6 +36,7 @@ struct ConfigOptions {
 	bool                   spirv_debug_printf_enabled  = false;
 	bool                   renderdoc_enabled           = false;
 	bool                   ngg_rectlist_draw_enabled   = true;
+	std::filesystem::path  save_data_folder            = "_SaveData";
 };
 
 void Load(const ConfigOptions& cfg);
@@ -64,6 +65,7 @@ bool SpirvDebugPrintfEnabled();
 
 bool RenderDocEnabled();
 bool NggRectlistDrawEnabled();
+std::filesystem::path GetSaveDataFolder();
 
 } // namespace Config
 

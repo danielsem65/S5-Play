@@ -737,7 +737,7 @@ public:
 	};
 
 	PhysicalMemory() {
-		EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+		CHECK(!Common::Thread::IsMainThread());
 		m_free.emplace(0, Size());
 	}
 	virtual ~PhysicalMemory() { KYTY_NOT_IMPLEMENTED; }
@@ -795,7 +795,7 @@ public:
 		char                name[KERNEL_MAXIMUM_NAME_LENGTH];
 	};
 
-	FlexibleMemory() { EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread()); }
+	FlexibleMemory() { CHECK(!Common::Thread::IsMainThread()); }
 	virtual ~FlexibleMemory() { KYTY_NOT_IMPLEMENTED; }
 
 	KYTY_CLASS_NO_COPY(FlexibleMemory);
@@ -1894,7 +1894,7 @@ int32_t KYTY_SYSV_ABI KernelMapNamedFlexibleMemory(void** addr_in_out, size_t le
 
 	std::lock_guard<std::recursive_mutex> memory_operation_lock(g_memory_operation_mutex);
 
-	EXIT_NOT_IMPLEMENTED(addr_in_out == nullptr);
+	CHECK(addr_in_out == nullptr);
 
 	constexpr size_t   PAGE_SIZE         = 0x4000;
 	constexpr size_t   MAXIMUM_NAME_SIZE = 32;
@@ -2661,7 +2661,7 @@ int KYTY_SYSV_ABI KernelMapDirectMemory(void** addr, size_t len, int prot, int f
 
 	std::lock_guard<std::recursive_mutex> memory_operation_lock(g_memory_operation_mutex);
 
-	EXIT_NOT_IMPLEMENTED(addr == nullptr);
+	CHECK(addr == nullptr);
 	constexpr int MAP_FIXED        = 0x10;
 	constexpr int MAP_NO_OVERWRITE = 0x80;
 
@@ -2712,8 +2712,8 @@ int KYTY_SYSV_ABI KernelMapDirectMemory(void** addr, size_t len, int prot, int f
 	};
 
 	if (fixed) {
-		EXIT_NOT_IMPLEMENTED(in_addr == 0);
-		EXIT_NOT_IMPLEMENTED(alignment != 0 && (in_addr & (alignment - 1)) != 0);
+		CHECK(in_addr == 0);
+		CHECK(alignment != 0 && (in_addr & (alignment - 1)) != 0);
 		if (no_overwrite && g_virtual_ranges->HasOverlap(in_addr, len)) {
 			return KERNEL_ERROR_ENOMEM;
 		}
@@ -2929,7 +2929,7 @@ int KYTY_SYSV_ABI KernelQueryMemoryProtection(void* addr, void** start, void** e
 
 	std::lock_guard<std::recursive_mutex> memory_operation_lock(g_memory_operation_mutex);
 
-	EXIT_NOT_IMPLEMENTED(addr == nullptr);
+	CHECK(addr == nullptr);
 
 	VirtualRanges::Range range {};
 	if (!g_virtual_ranges->Query(reinterpret_cast<uint64_t>(addr), 0, &range)) {
@@ -3452,7 +3452,7 @@ int KYTY_SYSV_ABI KernelAvailableFlexibleMemorySize(size_t* size) {
 
 	std::lock_guard<std::recursive_mutex> memory_operation_lock(g_memory_operation_mutex);
 
-	EXIT_NOT_IMPLEMENTED(size == nullptr);
+	CHECK(size == nullptr);
 
 	*size = g_flexible_memory->Available();
 

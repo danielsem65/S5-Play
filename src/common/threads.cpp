@@ -140,7 +140,7 @@ struct CondVarPrivate {
 #ifdef KYTY_WIN_CS
 	CondVarPrivate() {
 		static auto func = ResolveInitializeConditionVariable();
-		EXIT_NOT_IMPLEMENTED(func == nullptr);
+		CHECK(func == nullptr);
 		func(&m_cv);
 	}
 	~CondVarPrivate() = default;
@@ -158,7 +158,7 @@ static wait_poll_func_t                             g_cond_wait_poll_callback = 
 static void WakeCondVar(CondVarPrivate* cond_var) {
 #ifdef KYTY_WIN_CS
 	static auto func = ResolveWakeAllConditionVariable();
-	EXIT_NOT_IMPLEMENTED(func == nullptr);
+	CHECK(func == nullptr);
 	func(&cond_var->m_cv);
 #else
 	cond_var->m_cv.notify_all();
@@ -340,7 +340,7 @@ void CondVar::Wait(Mutex* mutex) {
 	};
 #ifdef KYTY_WIN_CS
 	static auto func = ResolveSleepConditionVariableCS();
-	EXIT_NOT_IMPLEMENTED(func == nullptr);
+	CHECK(func == nullptr);
 	if (g_cond_wait_poll_callback == nullptr) {
 		func(&m_cond_var->m_cv, &mutex->m_mutex->m_cs, INFINITE);
 	} else {
@@ -375,7 +375,7 @@ bool CondVar::WaitFor(Mutex* mutex, uint32_t micros) {
 #endif
 #ifdef KYTY_WIN_CS
 	static auto func = ResolveSleepConditionVariableCS();
-	EXIT_NOT_IMPLEMENTED(func == nullptr);
+	CHECK(func == nullptr);
 	ok = !(func(&m_cond_var->m_cv, &mutex->m_mutex->m_cs, (micros < 1000 ? 1 : micros / 1000)) ==
 	           0 &&
 	       GetLastError() == ERROR_TIMEOUT);
@@ -391,7 +391,7 @@ bool CondVar::WaitFor(Mutex* mutex, uint32_t micros) {
 void CondVar::Signal() {
 #ifdef KYTY_WIN_CS
 	static auto func = ResolveWakeConditionVariable();
-	EXIT_NOT_IMPLEMENTED(func == nullptr);
+	CHECK(func == nullptr);
 	func(&m_cond_var->m_cv);
 #else
 	m_cond_var->m_cv.notify_one();

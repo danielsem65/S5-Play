@@ -136,6 +136,7 @@ void ConfigurationEditDialog::Init(const Configuration& info) {
 	m_ui->lineEdit_printf_file->setEnabled(info.printf_direction ==
 	                                       Configuration::LogDirection::File);
 	ListInit(m_ui->comboBox_profiler_direction, info.profiler_direction);
+	m_ui->lineEdit_save_data_folder->setText(info.save_data_folder);
 }
 
 void ConfigurationEditDialog::InitGameDirectories() {
@@ -262,6 +263,7 @@ static void UpdateInfo(Configuration& info, Ui::ConfigurationEditDialog& ui) {
 	info.printf_output_file = ui.lineEdit_printf_file->text();
 	info.profiler_direction =
 	    TextToEnum<Configuration::ProfilerDirection>(ui.comboBox_profiler_direction->currentText());
+	info.save_data_folder = ui.lineEdit_save_data_folder->text();
 }
 
 void ConfigurationEditDialog::update_info() {

@@ -525,7 +525,7 @@ NativeTexture(uint64_t submit_id, CommandBuffer& command_buffer,
 	TileSizeAlign size;
 	TileGetTextureTotalSize(format, width, height, depth, pitch, levels, tile,
 	                        type == Prospero::ImageType::kColor3D, size);
-	EXIT_NOT_IMPLEMENTED(size.size == 0 ||
+	CHECK(size.size == 0 ||
 	                     (address & (static_cast<uint64_t>(size.align) - 1u)) != 0);
 	if (storage) {
 		ValidateStorageTexture(resource, descriptor, size.size);
@@ -708,7 +708,7 @@ NativeTexture(uint64_t submit_id, CommandBuffer& command_buffer,
 			}
 		}
 	}
-	EXIT_NOT_IMPLEMENTED(image == nullptr);
+	CHECK(image == nullptr);
 	if (NeedsStaticSampledArrayView(resource.dimension ==
 	                                    ShaderRecompiler::Decoder::ImageDimension::Dim2DArray,
 	                                image_view != nullptr)) {

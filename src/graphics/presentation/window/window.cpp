@@ -441,7 +441,7 @@ void GameEventFinger([[maybe_unused]] WindowGame& game, [[maybe_unused]] const E
 
 void GameEventController([[maybe_unused]] WindowGame&            game,
                          [[maybe_unused]] const EventController& f) {
-	EXIT_NOT_IMPLEMENTED(f.remapped);
+	CHECK(f.remapped);
 
 #ifdef KYTY_DBG_INPUT
 	if (f.added || f.removed) {
@@ -460,7 +460,7 @@ void GameEventController([[maybe_unused]] WindowGame&            game,
 
 	if (f.added) {
 		auto* pad = SDL_GameControllerOpen(f.id);
-		EXIT_NOT_IMPLEMENTED(pad == nullptr);
+		CHECK(pad == nullptr);
 		int id = SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(pad));
 		Controller::ControllerConnect(id);
 	}
@@ -950,7 +950,7 @@ static void WindowCreate(WindowContext& context) {
 }
 
 void WindowInit(uint32_t width, uint32_t height) {
-	EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+	CHECK(!Common::Thread::IsMainThread());
 	EXIT_IF(g_window_ctx != nullptr);
 
 	g_window_ctx = new WindowContext;
@@ -1030,7 +1030,7 @@ static void WindowLoadPngIcon(const std::string& path, WindowIcon* icon) {
 
 	icon->surface = SDL_CreateRGBSurfaceWithFormatFrom(icon->pixels, width, height, 32, width * 4,
 	                                                   SDL_PIXELFORMAT_RGBA32);
-	EXIT_NOT_IMPLEMENTED(icon->surface == nullptr);
+	CHECK(icon->surface == nullptr);
 }
 
 void WindowUpdateIcon() {

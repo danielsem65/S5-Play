@@ -52,7 +52,7 @@ struct Label {
 class LabelManager {
 public:
 	LabelManager() {
-		EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+		CHECK(!Common::Thread::IsMainThread());
 		Common::Thread t(ThreadRun, this);
 		t.Detach();
 	}
@@ -147,7 +147,7 @@ void LabelManager::ThreadRun(void* data) {
 
 		for (auto& label: deleted_labels) {
 			bool removed = manager->Remove(*label);
-			EXIT_NOT_IMPLEMENTED(!removed);
+			CHECK(!removed);
 		}
 
 		manager->m_mutex.Unlock();
@@ -214,9 +214,9 @@ bool LabelManager::Remove(Label& label) {
 	Common::LockGuard lock(m_mutex);
 
 	const auto it = std::find(m_labels.begin(), m_labels.end(), &label);
-	EXIT_NOT_IMPLEMENTED(it == m_labels.end());
+	CHECK(it == m_labels.end());
 
-	EXIT_NOT_IMPLEMENTED(label.status != LabelStatus::NotActive &&
+	CHECK(label.status != LabelStatus::NotActive &&
 	                     label.status != LabelStatus::Active &&
 	                     label.status != LabelStatus::ActiveDeleted);
 
@@ -234,7 +234,7 @@ bool LabelManager::Remove(Label& label) {
 void LabelManager::Destroy(Label& label) {
 	EXIT_IF(label.device == nullptr);
 
-	EXIT_NOT_IMPLEMENTED(!label.submissions.empty());
+	CHECK(!label.submissions.empty());
 
 	delete &label;
 }
@@ -252,9 +252,9 @@ void LabelManager::Set(CommandBuffer& buffer, Label& label) {
 	Common::LockGuard lock(m_mutex);
 
 	const auto it = std::find(m_labels.begin(), m_labels.end(), &label);
-	EXIT_NOT_IMPLEMENTED(it == m_labels.end());
+	CHECK(it == m_labels.end());
 
-	EXIT_NOT_IMPLEMENTED(label.status != LabelStatus::New &&
+	CHECK(label.status != LabelStatus::New &&
 	                     label.status != LabelStatus::NotActive &&
 	                     label.status != LabelStatus::Active);
 
@@ -267,7 +267,7 @@ void LabelManager::Set(CommandBuffer& buffer, Label& label) {
 
 	auto vk_buffer = buffer.Handle();
 
-	EXIT_NOT_IMPLEMENTED(vk_buffer == nullptr);
+	CHECK(vk_buffer == nullptr);
 
 	vk::EventCreateInfo create_info {};
 	create_info.sType = vk::StructureType::eEventCreateInfo;

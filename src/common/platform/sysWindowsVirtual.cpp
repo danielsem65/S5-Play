@@ -127,7 +127,7 @@ uint64_t SysVirtualAllocAligned(uint64_t address, uint64_t size, VirtualMemory::
 
 	static auto virtual_alloc2 = ResolveVirtualAlloc2();
 
-	EXIT_NOT_IMPLEMENTED(virtual_alloc2 == nullptr);
+	CHECK(virtual_alloc2 == nullptr);
 
 	auto ptr = reinterpret_cast<uintptr_t>(
 	    virtual_alloc2(GetCurrentProcess(), nullptr, size,
@@ -243,7 +243,7 @@ uint64_t SysVirtualReserveAligned(uint64_t address, uint64_t size, uint64_t alig
 
 	static auto virtual_alloc2 = ResolveVirtualAlloc2();
 
-	EXIT_NOT_IMPLEMENTED(virtual_alloc2 == nullptr);
+	CHECK(virtual_alloc2 == nullptr);
 
 	auto ptr = reinterpret_cast<uintptr_t>(virtual_alloc2(GetCurrentProcess(), nullptr, size,
 	                                                      static_cast<DWORD>(MEM_RESERVE),

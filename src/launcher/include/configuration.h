@@ -94,6 +94,7 @@ public:
 	ProfilerDirection      profiler_direction          = ProfilerDirection::None;
 	bool                   renderdoc_enabled           = false;
 	bool                   ngg_rectlist_draw_enabled   = true;
+	QString                save_data_folder             = "_SaveData";
 
 	QString elf = QStringLiteral("eboot.bin");
 
@@ -112,6 +113,7 @@ public:
 		profiler_direction          = other.profiler_direction;
 		renderdoc_enabled           = other.renderdoc_enabled;
 		ngg_rectlist_draw_enabled   = other.ngg_rectlist_draw_enabled;
+		save_data_folder            = other.save_data_folder;
 	}
 
 	void CopyFrom(const Configuration& other) {
@@ -146,6 +148,7 @@ public:
 		KYTY_CFG_SET(profiler_direction);
 		KYTY_CFG_SET(renderdoc_enabled);
 		KYTY_CFG_SET(ngg_rectlist_draw_enabled);
+		KYTY_CFG_SET(save_data_folder);
 		KYTY_CFG_SET(elf);
 	}
 
@@ -169,6 +172,7 @@ public:
 		KYTY_CFG_GET(renderdoc_enabled);
 		ngg_rectlist_draw_enabled =
 		    s->value("ngg_rectlist_draw_enabled", ngg_rectlist_draw_enabled).toBool();
+		save_data_folder = s->value("save_data_folder", save_data_folder).toString();
 		elf = s->value("elf", elf).toString();
 	}
 };

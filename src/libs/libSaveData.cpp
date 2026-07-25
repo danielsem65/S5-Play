@@ -1,6 +1,7 @@
 #include "common/abi.h"
 #include "common/assert.h"
 #include "common/common.h"
+#include "common/emulatorConfig.h"
 #include "common/file.h"
 #include "common/logging/log.h"
 #include "common/stringUtils.h"
@@ -15,14 +16,14 @@
 #include <deque>
 #include <vector>
 
+
 namespace Libs {
 
 LIB_VERSION("SaveData", 1, "SaveData", 1, 1);
 
 namespace SaveData {
 
-// TODO(): specify dir at launcher
-static constexpr char     SAVE_DATA_DIR[]      = "_SaveData";
+// dir specified via launcher config
 static constexpr char     SAVE_DATA_POINT[]    = "/savedata0";
 static constexpr uint64_t SAVE_DATA_BLOCKS_MAX = 16384;
 
@@ -294,7 +295,7 @@ static bool dir_name_match(const char* str, const char* pattern) {
 int KYTY_SYSV_ABI SaveDataInitialize3(const void* /*init*/) {
 	PRINT_NAME();
 
-	// EXIT_NOT_IMPLEMENTED(init != nullptr);
+	// CHECK(init != nullptr);
 
 	return OK;
 }
@@ -352,7 +353,7 @@ int KYTY_SYSV_ABI SaveDataDirNameSearch(const SaveDataDirNameSearchCond* cond,
 
 	std::vector<std::string> dir_list;
 	std::string              root =
-	    Common::FixDirectorySlash((std::string(SAVE_DATA_DIR) + "/" + get_title_id()));
+	    Common::FixDirectorySlash((Config::GetSaveDataFolder().string() + "/" + get_title_id()));
 
 	if (Common::File::IsDirectoryExisting(root)) {
 		for (const auto& entry: Common::File::GetDirEntries(root)) {
@@ -403,9 +404,9 @@ int KYTY_SYSV_ABI SaveDataDirNameSearch(const SaveDataDirNameSearchCond* cond,
 int KYTY_SYSV_ABI SaveDataMount3(const SaveDataMount3* mount, SaveDataMountResult* mount_result) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(mount == nullptr);
-	EXIT_NOT_IMPLEMENTED(mount_result == nullptr);
-	EXIT_NOT_IMPLEMENTED(mount->dir_name == nullptr);
+	CHECK(mount == nullptr);
+	CHECK(mount_result == nullptr);
+	CHECK(mount->dir_name == nullptr);
 
 	LOGF("\t user_id       = %d\n"
 	     "\t dir_name      = %s\n"
@@ -418,7 +419,7 @@ int KYTY_SYSV_ABI SaveDataMount3(const SaveDataMount3* mount, SaveDataMountResul
 
 	*mount_result = {};
 
-	std::string mount_dir   = std::string(SAVE_DATA_DIR) + "/" + get_title_id() + "/" +
+	std::string mount_dir   = Config::GetSaveDataFolder().string() + "/" + get_title_id() + "/" +
 	                          std::string(mount->dir_name->data);
 	std::string mount_point = SAVE_DATA_POINT;
 	bool        create      = ((mount->mount_mode & 4u) != 0);
@@ -442,14 +443,14 @@ int KYTY_SYSV_ABI SaveDataMount3(const SaveDataMount3* mount, SaveDataMountResul
 		Common::File::CreateDirectories(mount_dir);
 		created = true;
 
-		EXIT_NOT_IMPLEMENTED((!Common::File::IsDirectoryExisting(mount_dir)));
+		CHECK((!Common::File::IsDirectoryExisting(mount_dir)));
 	}
 
 	LibKernel::FileSystem::Mount(mount_dir, mount_point);
 
 	int s = snprintf(mount_result->mount_point.data, 16, "%s", mount_point.c_str());
 
-	EXIT_NOT_IMPLEMENTED(s >= 16);
+	CHECK(s >= 16);
 
 	mount_result->required_blocks = 0;
 	mount_result->mount_status    = (created ? 1 : 0);
@@ -575,7 +576,7 @@ int KYTY_SYSV_ABI SaveDataTransferringMount(const SaveDataTransferringMount* mou
 
 	*mount_result = {};
 
-	std::string mount_dir   = std::string(SAVE_DATA_DIR) + "/" + get_title_id() + "/" +
+	std::string mount_dir   = Config::GetSaveDataFolder().string() + "/" + get_title_id() + "/" +
 	                          std::string(mount->dir_name->data);
 	std::string mount_point = SAVE_DATA_POINT;
 
@@ -587,7 +588,7 @@ int KYTY_SYSV_ABI SaveDataTransferringMount(const SaveDataTransferringMount* mou
 
 	int s = snprintf(mount_result->mount_point.data, 16, "%s", mount_point.c_str());
 
-	EXIT_NOT_IMPLEMENTED(s >= 16);
+	CHECK(s >= 16);
 
 	mount_result->required_blocks = 0;
 	mount_result->mount_status    = 1;
@@ -663,7 +664,7 @@ int KYTY_SYSV_ABI SaveDataDelete(const SaveDataDelete* del) {
 	     del->dir_name->data);
 
 	std::string dir =
-	    std::string(SAVE_DATA_DIR) + "/" + get_title_id() + "/" + std::string(del->dir_name->data);
+	    Config::GetSaveDataFolder().string() + "/" + get_title_id() + "/" + std::string(del->dir_name->data);
 	if (Common::File::IsDirectoryExisting(dir)) {
 		Common::File::DeleteDirectory(dir);
 	}
@@ -796,7 +797,7 @@ int KYTY_SYSV_ABI SaveDataSetParam(const SaveDataMountPoint* mount_point, uint32
                                    const void* param_buf, size_t param_buf_size) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(mount_point == nullptr);
+	CHECK(mount_point == nullptr);
 
 	LOGF("\t mount_point    = %s\n"
 	     "\t param_type     = %u\n"
@@ -822,8 +823,8 @@ int KYTY_SYSV_ABI SaveDataGetMountInfo(const SaveDataMountPoint* mount_point,
                                        SaveDataMountInfo*        info) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(mount_point == nullptr);
-	EXIT_NOT_IMPLEMENTED(info == nullptr);
+	CHECK(mount_point == nullptr);
+	CHECK(info == nullptr);
 
 	*info = {};
 
@@ -835,8 +836,8 @@ int KYTY_SYSV_ABI SaveDataGetMountInfo(const SaveDataMountPoint* mount_point,
 
 int KYTY_SYSV_ABI SaveDataSaveIcon(const SaveDataMountPoint* mount_point,
                                    const SaveDataIcon*       icon) {
-	EXIT_NOT_IMPLEMENTED(mount_point == nullptr);
-	EXIT_NOT_IMPLEMENTED(icon == nullptr);
+	CHECK(mount_point == nullptr);
+	CHECK(icon == nullptr);
 
 	LOGF("\t buf       = %016" PRIx64 "\n"
 	     "\t buf_size  = %" PRIu64 "\n"

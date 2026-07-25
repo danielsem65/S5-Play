@@ -25,7 +25,7 @@ DepthTransfer MakeDepthTransfer(uint64_t size, uint32_t layers, uint32_t format,
                                 uint32_t pitch, uint32_t base_layer, vk::ImageAspectFlags aspect) {
 	EXIT_IF(size == 0 || layers == 0 || size % layers != 0);
 	TileBlockLayout block {};
-	EXIT_NOT_IMPLEMENTED(
+	CHECK(
 	    !TileGetBlockLayout(TileBlockFamily::Depth64KB, bytes_per_element, block) ||
 	    Prospero::NumBytesPerElement(format) != bytes_per_element);
 
@@ -126,7 +126,7 @@ void Tiler::DetileImage(GpuTextureVulkanImage& image, const ImageInfo& info,
 void Tiler::DetileImage(DepthStencilVulkanImage& image, const DepthTargetInfo& info,
                         const BufferImageCopySource& source, bool refresh,
                         uint32_t base_layer) const {
-	EXIT_NOT_IMPLEMENTED(info.samples != 1 || image.samples != 1);
+	CHECK(info.samples != 1 || image.samples != 1);
 	if (refresh) Transfer::WaitForQueueIdle();
 
 	if (DepthAspectTransferBytes(info.format) != info.bytes_per_element) {
@@ -137,7 +137,7 @@ void Tiler::DetileImage(DepthStencilVulkanImage& image, const DepthTargetInfo& i
 			case vk::Format::eD32SfloatS8Uint:
 				UploadPromotedD16Depth<EncodeD16AsD32>(image, info, source, base_layer);
 				return;
-			default: EXIT_NOT_IMPLEMENTED(true);
+			default: CHECK(true);
 		}
 	}
 	UploadDepth(image, source.address, info.size, info.layers, info.guest_format,
@@ -148,7 +148,7 @@ void Tiler::DetileImage(DepthStencilVulkanImage& image, const DepthTargetInfo& i
 void Tiler::DetileStencil(DepthStencilVulkanImage& image, const DepthTargetInfo& info,
                           const BufferImageCopySource& source, bool refresh,
                           uint32_t base_layer) const {
-	EXIT_NOT_IMPLEMENTED(info.samples != 1 || image.samples != 1);
+	CHECK(info.samples != 1 || image.samples != 1);
 	if (refresh) Transfer::WaitForQueueIdle();
 
 	const auto format = Prospero::GpuEnumValue(Prospero::BufferFormat::k8UInt);

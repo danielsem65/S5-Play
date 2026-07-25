@@ -111,7 +111,7 @@ void ThreadCommandPool::Create() {
 	pool_info.flags            = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
 
 	const auto result = graphics.device.createCommandPool(&pool_info, nullptr, &m_pool);
-	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess || m_pool == nullptr);
+	CHECK(result != vk::Result::eSuccess || m_pool == nullptr);
 }
 
 CommandSlot* ThreadCommandPool::CreateSlot() {
@@ -197,7 +197,7 @@ void CommandBuffer::Release() {
 	ReleaseResourcesAfterFence();
 	m_slot = nullptr;
 
-	EXIT_NOT_IMPLEMENTED(!IsInvalid());
+	CHECK(!IsInvalid());
 }
 
 void CommandBuffer::DeleteAfterFence(VulkanBuffer& buffer) {
@@ -233,7 +233,7 @@ void CommandBuffer::Begin() const {
 
 	auto result = buffer.begin(&begin_info);
 
-	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+	CHECK(result != vk::Result::eSuccess);
 }
 
 void CommandBuffer::End() const {
@@ -241,7 +241,7 @@ void CommandBuffer::End() const {
 
 	auto result = buffer.end();
 
-	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+	CHECK(result != vk::Result::eSuccess);
 }
 
 void CommandBuffer::SetDebugInfo(uint32_t op, uint64_t submit_id, uint32_t arg0, uint32_t arg1,
@@ -295,7 +295,7 @@ void CommandBuffer::Submit(vk::Semaphore wait_semaphore, vk::PipelineStageFlags 
 		LOGF("vkResetFences failed before submit: %s (%d)\n", VulkanToString(result).c_str(),
 		     static_cast<int>(result));
 	}
-	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+	CHECK(result != vk::Result::eSuccess);
 
 	if (Config::GraphicsDebugDumpEnabled()) {
 		LOGF("vkQueueSubmit begin: slot=%u wait_semaphore=%p signal_semaphore=%p"
@@ -321,7 +321,7 @@ void CommandBuffer::Submit(vk::Semaphore wait_semaphore, vk::PipelineStageFlags 
 		     m_debug_op, m_debug_submit_id, m_debug_arg0, m_debug_arg1, m_debug_arg2, m_debug_arg3,
 		     m_debug_arg4);
 	}
-	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+	CHECK(result != vk::Result::eSuccess);
 }
 
 void CommandBuffer::WaitForFence() {
@@ -342,7 +342,7 @@ void CommandBuffer::WaitForFenceOnly() {
 		     m_debug_op, m_debug_submit_id, m_debug_arg0, m_debug_arg1, m_debug_arg2, m_debug_arg3,
 		     m_debug_arg4);
 	}
-	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+	CHECK(result != vk::Result::eSuccess);
 	m_fence_waited = true;
 }
 
@@ -400,7 +400,7 @@ void CommandBuffer::BeginRenderPass(VulkanFramebuffer& framebuffer, RenderColorI
 	}
 	bool with_color = (color_count != 0);
 
-	EXIT_NOT_IMPLEMENTED(!with_depth && !with_color);
+	CHECK(!with_depth && !with_color);
 
 	vk::ClearValue clears[RENDER_COLOR_ATTACHMENTS_MAX + 1] = {};
 	for (uint32_t i = 0; i < color_count; i++) {

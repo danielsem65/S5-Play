@@ -32,6 +32,7 @@
 
 namespace Libs::Graphics {
 
+
 static thread_local CommandProcessor* g_current_processor      = nullptr;
 static thread_local Pm4Execution*     g_current_execution      = nullptr;
 static thread_local uint32_t          g_submission_pause_depth = 0;
@@ -83,7 +84,7 @@ public:
 	static constexpr uint32_t QueueCount           = 1 + ComputeQueueCount;
 
 	Gpu() {
-		EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+		CHECK(!Common::Thread::IsMainThread());
 		m_gfx_cp = std::make_unique<CommandProcessor>();
 		Common::Thread thread(ThreadRun, this);
 		thread.Detach();
@@ -152,7 +153,7 @@ static bool GraphicsRunDebugDumpEnabled() {
 }
 
 void GraphicsRunInit() {
-	EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+	CHECK(!Common::Thread::IsMainThread());
 
 	EXIT_IF(g_gpu != nullptr);
 
@@ -180,7 +181,7 @@ void Gpu::SubmitCompute(uint32_t queue, uint32_t* cmd_buffer, uint32_t num_dw,
 	GpuMutexLock lock(m_submission_mutex);
 
 	constexpr uint32_t compute_queue_base = 0x20u;
-	EXIT_NOT_IMPLEMENTED(queue < compute_queue_base ||
+	CHECK(queue < compute_queue_base ||
 	                     queue >= compute_queue_base + ComputeQueueCount);
 
 	const auto compute_queue = queue - compute_queue_base;
@@ -356,7 +357,7 @@ void CommandProcessor::WriteData(uint32_t* dst, const uint32_t* src, uint32_t dw
 	if (dst_sel != 0 && dst_sel != 2 && dst_sel != 4 && dst_sel != 5) {
 		EXIT("unsupported writeData destination selector 0x%02" PRIx32 "\n", dst_sel);
 	}
-	EXIT_NOT_IMPLEMENTED(increment != 0);
+	CHECK(increment != 0);
 
 	if (cache_policy > 3 || write_confirm > 1) {
 		LOGF("\t warning: unexpected write_data control 0x%08" PRIx32 "\n", write_control);
@@ -386,16 +387,16 @@ void CommandProcessor::DmaData(uint8_t engine, uint8_t dst_sel, uint8_t dst_cach
                                uint64_t src_address_or_offset_or_immediate, uint32_t num_bytes,
                                uint8_t wait_for_previous, uint8_t write_confirm,
                                uint8_t block_engine) {
-	EXIT_NOT_IMPLEMENTED(engine > 1);
+	CHECK(engine > 1);
 	if (num_bytes == 0) {
 		return;
 	}
-	EXIT_NOT_IMPLEMENTED((num_bytes & 3u) != 0);
-	EXIT_NOT_IMPLEMENTED(dst_cache_policy > 3);
-	EXIT_NOT_IMPLEMENTED(src_cache_policy > 3);
-	EXIT_NOT_IMPLEMENTED(wait_for_previous > 1);
-	EXIT_NOT_IMPLEMENTED(write_confirm > 1);
-	EXIT_NOT_IMPLEMENTED(block_engine > 1);
+	CHECK((num_bytes & 3u) != 0);
+	CHECK(dst_cache_policy > 3);
+	CHECK(src_cache_policy > 3);
+	CHECK(wait_for_previous > 1);
+	CHECK(write_confirm > 1);
+	CHECK(block_engine > 1);
 	const bool dst_memory = dst_sel == 0 || dst_sel == 3;
 	const bool src_memory = src_sel == 0 || src_sel == 3;
 	if (!dst_memory) {
@@ -660,7 +661,7 @@ void CommandProcessor::ProcessPm4(Pm4Execution& execution, size_t stop_depth) {
 		const auto  total_dw      = cursor.total_dw;
 		const auto  packet_header = packet[0];
 		const auto  opcode        = (packet_header >> 8u) & 0xffu;
-		EXIT_NOT_IMPLEMENTED(remaining_dw > total_dw);
+		CHECK(remaining_dw > total_dw);
 
 		if (packet_header == 0x80000000u) {
 			cursor.next_packet++;
@@ -669,7 +670,7 @@ void CommandProcessor::ProcessPm4(Pm4Execution& execution, size_t stop_depth) {
 			continue;
 		}
 
-		EXIT_NOT_IMPLEMENTED(remaining_dw < 2);
+		CHECK(remaining_dw < 2);
 
 		if (GraphicsRunDebugDumpEnabled()) {
 			LOGF("CP packet: offset=0x%05" PRIx32 " cmd_id=0x%08" PRIx32 " op=0x%02" PRIx32
@@ -679,7 +680,7 @@ void CommandProcessor::ProcessPm4(Pm4Execution& execution, size_t stop_depth) {
 
 		if ((packet_header & 1u) != 0 && ShouldSkipPredicatedPackets()) {
 			auto packet_dw = KYTY_PM4_LEN(packet_header);
-			EXIT_NOT_IMPLEMENTED(packet_dw == 0 || packet_dw > remaining_dw);
+			CHECK(packet_dw == 0 || packet_dw > remaining_dw);
 			static std::atomic<uint32_t> skip_log_count {0};
 			if (skip_log_count.fetch_add(1) < 2048) {
 				LOGF("\t predicated skip: op=0x%02" PRIx32 ", r=0x%02" PRIx32 ", len=%" PRIu32
@@ -781,7 +782,7 @@ void CommandProcessor::SetPredication(uint32_t condition, uint32_t op, uint32_t 
 			m_predicate_skip = false;
 		} break;
 		case 0x03: {
-			EXIT_NOT_IMPLEMENTED(address == nullptr);
+			CHECK(address == nullptr);
 
 			auto value = *reinterpret_cast<const volatile uint64_t*>(address);
 
@@ -862,8 +863,8 @@ void CommandProcessor::DrawIndirect(uint32_t data_offset, uint32_t draw_initiato
 		uint32_t start_instance_location;
 	};
 
-	EXIT_NOT_IMPLEMENTED((draw_initiator & ~0x20u) != 2u);
-	EXIT_NOT_IMPLEMENTED(m_draw_indirect_args_base_addr == 0);
+	CHECK((draw_initiator & ~0x20u) != 2u);
+	CHECK(m_draw_indirect_args_base_addr == 0);
 
 	const auto* args_addr =
 	    reinterpret_cast<const void*>(m_draw_indirect_args_base_addr + data_offset);
@@ -945,8 +946,8 @@ void CommandProcessor::DrawIndirectMulti(uint32_t data_offset, uint32_t max_coun
 		uint32_t start_instance_location;
 	};
 
-	EXIT_NOT_IMPLEMENTED((draw_initiator & ~0x20u) != 2u);
-	EXIT_NOT_IMPLEMENTED(m_draw_indirect_args_base_addr == 0);
+	CHECK((draw_initiator & ~0x20u) != 2u);
+	CHECK(m_draw_indirect_args_base_addr == 0);
 
 	uint32_t draw_count = max_count_or_count;
 	if (count_addr != nullptr) {
@@ -961,7 +962,7 @@ void CommandProcessor::DrawIndirectMulti(uint32_t data_offset, uint32_t max_coun
 	}
 
 	const auto args_size = indexed ? sizeof(DrawIndexedIndirectArgs) : sizeof(DrawIndirectArgs);
-	EXIT_NOT_IMPLEMENTED(stride_in_bytes < args_size);
+	CHECK(stride_in_bytes < args_size);
 
 	for (uint32_t i = 0; i < draw_count; i++) {
 		const auto args_addr = m_draw_indirect_args_base_addr + data_offset +
@@ -1104,7 +1105,7 @@ void CommandProcessor::DispatchIndirect(uint32_t data_offset, uint32_t mode) {
 		uint32_t thread_group_z;
 	};
 
-	EXIT_NOT_IMPLEMENTED(m_dispatch_indirect_args_base_addr == 0);
+	CHECK(m_dispatch_indirect_args_base_addr == 0);
 
 	const auto args_addr = m_dispatch_indirect_args_base_addr + data_offset;
 	auto*      args      = reinterpret_cast<const DispatchIndirectArgs*>(args_addr);
@@ -1158,8 +1159,8 @@ void CommandProcessor::WriteAtEndOfPipe(uint32_t cache_policy, uint32_t event_wr
 		     reinterpret_cast<uint64_t>(dst_gpu_addr), log_width, static_cast<uint64_t>(value));
 	}
 
-	EXIT_NOT_IMPLEMENTED(cache_policy != 0x00000000);
-	EXIT_NOT_IMPLEMENTED(event_write_dest != 0x00000000);
+	CHECK(cache_policy != 0x00000000);
+	CHECK(event_write_dest != 0x00000000);
 
 	bool with_interrupt = false;
 	switch (interrupt_selector) {

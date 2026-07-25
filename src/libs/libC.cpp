@@ -272,7 +272,7 @@ static KYTY_SYSV_ABI void init_env(const InitEnvParams* params) {
 
 	constexpr int argv_capacity = static_cast<int>(sizeof(params->argv) / sizeof(params->argv[0]));
 
-	EXIT_NOT_IMPLEMENTED(params->argc < 0 || params->argc >= argv_capacity);
+	CHECK(params->argc < 0 || params->argc >= argv_capacity);
 
 	g_argc = params->argc;
 	g_argv = params->argv;
@@ -635,7 +635,7 @@ struct Info {
 void KYTY_SYSV_ABI LibcHeapGetTraceInfo(Info* info) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(info->size != 32);
+	CHECK(info->size != 32);
 
 	info->mspace_atomic_id_mask = &g_mspace_atomic_id_mask;
 	info->mstate_table          = g_mstate_table;
@@ -687,7 +687,7 @@ static KYTY_SYSV_ABI int snprintf(VA_ARGS) {
 int KYTY_SYSV_ABI fflush(FILE* stream) {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(stream != stdout);
+	CHECK(stream != stdout);
 
 	return ::fflush(stream);
 }

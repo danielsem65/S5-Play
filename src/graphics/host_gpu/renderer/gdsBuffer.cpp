@@ -23,8 +23,8 @@ void GdsBuffer::Clear(uint64_t dw_offset, uint32_t dw_num, uint32_t clear_value)
 
 	Init();
 
-	EXIT_NOT_IMPLEMENTED(dw_offset >= DW_SIZE);
-	EXIT_NOT_IMPLEMENTED(dw_offset + dw_num > DW_SIZE);
+	CHECK(dw_offset >= DW_SIZE);
+	CHECK(dw_offset + dw_num > DW_SIZE);
 
 	void* data = nullptr;
 	m_graphics.MapMemory(m_buffer->memory, data);
@@ -43,8 +43,8 @@ void GdsBuffer::Read(uint32_t* dst, uint32_t dw_offset, uint32_t dw_size) {
 
 	Init();
 
-	EXIT_NOT_IMPLEMENTED(dw_offset >= DW_SIZE);
-	EXIT_NOT_IMPLEMENTED(dw_offset + dw_size > DW_SIZE);
+	CHECK(dw_offset >= DW_SIZE);
+	CHECK(dw_offset + dw_size > DW_SIZE);
 
 	void* data = nullptr;
 	m_graphics.MapMemory(m_buffer->memory, data);

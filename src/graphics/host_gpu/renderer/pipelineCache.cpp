@@ -90,7 +90,7 @@ PipelineCache::GraphicsPipeline& PipelineCache::CreateGraphicsPipeline(
 	}
 
 	const auto& clip_control = ctx.GetClipControl();
-	EXIT_NOT_IMPLEMENTED(!clip_control.IsZClipModeRepresentable());
+	CHECK(!clip_control.IsZClipModeRepresentable());
 	static_params.negative_one_to_one = !clip_control.dx_clip_space;
 	static_params.depth_clip_enable   = clip_control.IsZClipEnabled();
 	static_params.topology            = topology;
@@ -117,6 +117,14 @@ PipelineCache::GraphicsPipeline& PipelineCache::CreateGraphicsPipeline(
 	static_params.cull_back  = mc.cull_back;
 	static_params.cull_front = mc.cull_front;
 	static_params.face       = mc.face;
+
+	if (mc.poly_offset_front_enable || mc.poly_offset_back_enable) {
+		const auto& po     = ctx.GetPolyOffset();
+		static_params.depth_bias_enable          = true;
+		static_params.depth_bias_constant_factor = (mc.poly_offset_front_enable ? po.front_offset : po.back_offset);
+		static_params.depth_bias_clamp           = po.clamp;
+		static_params.depth_bias_slope_factor    = (mc.poly_offset_front_enable ? po.front_scale : po.back_scale);
+	}
 
 	for (uint32_t i = 0; i < color_count; i++) {
 		const auto& rt                        = ctx.GetRenderTarget(colors[i].target_slot);
@@ -168,8 +176,8 @@ PipelineCache::GraphicsPipeline& PipelineCache::CreateGraphicsPipeline(
 	LogPipelineTrace("CreatePipelineInternal done", vs_id.hash0, vs_id.crc32, ps_id.hash0,
 	                 ps_id.crc32);
 
-	EXIT_NOT_IMPLEMENTED(cached->pipeline == nullptr);
-	EXIT_NOT_IMPLEMENTED(cached->pipeline_layout == nullptr);
+	CHECK(cached->pipeline == nullptr);
+	CHECK(cached->pipeline_layout == nullptr);
 
 	auto [iter, inserted] = m_graphics_pipelines.emplace(std::move(key), std::move(cached));
 	EXIT_IF(!inserted);
@@ -206,8 +214,8 @@ PipelineCache::CreateComputePipeline(ShaderComputeInputInfo&      input_info,
 	auto cached = std::make_unique<ComputePipeline>(p);
 	CreatePipelineInternal(*cached, input_info, cs_spirv);
 
-	EXIT_NOT_IMPLEMENTED(cached->pipeline == nullptr);
-	EXIT_NOT_IMPLEMENTED(cached->pipeline_layout == nullptr);
+	CHECK(cached->pipeline == nullptr);
+	CHECK(cached->pipeline_layout == nullptr);
 
 	auto [iter, inserted] = m_compute_pipelines.emplace(std::move(key), std::move(cached));
 	EXIT_IF(!inserted);

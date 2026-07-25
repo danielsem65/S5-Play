@@ -126,7 +126,7 @@ DescriptorCache::GetDescriptorSetLayoutInternal(Stage                           
 	info.pBindings                 = bindings.data();
 	vk::DescriptorSetLayout layout = nullptr;
 	const auto result = m_graphics.device.createDescriptorSetLayout(&info, nullptr, &layout);
-	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess || layout == nullptr);
+	CHECK(result != vk::Result::eSuccess || layout == nullptr);
 	m_descriptor_set_layouts.emplace(key, layout);
 	return layout;
 }
@@ -150,7 +150,7 @@ void DescriptorCache::CreatePool() {
 	const auto pool_id = static_cast<int>(m_pools.size());
 	auto&      pool    = m_pools.emplace_back();
 	const auto result  = m_graphics.device.createDescriptorPool(&info, nullptr, &pool.pool);
-	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess || pool.pool == nullptr);
+	CHECK(result != vk::Result::eSuccess || pool.pool == nullptr);
 	pool.next_free_pool = m_first_free_pool;
 	m_first_free_pool   = pool_id;
 }
@@ -212,7 +212,7 @@ VulkanDescriptorSet& DescriptorCache::GetDescriptor(Stage                       
 	        data.samplers.size() != program.info.samplers.size() ||
 	        data.addresses.size() != program.info.addresses.size());
 	auto* set = Allocate(stage, program);
-	EXIT_NOT_IMPLEMENTED(set == nullptr);
+	CHECK(set == nullptr);
 
 	const auto descriptor_count = program.info.buffers.size() + program.info.images.size() +
 	                              program.info.samplers.size() + program.info.addresses.size() + 3u;

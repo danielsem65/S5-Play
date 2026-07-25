@@ -51,7 +51,7 @@ inline uint64_t render_pass_compat_id(uint32_t color_count, const vk::Format* co
 class FramebufferCache {
 public:
 	explicit FramebufferCache(GraphicContext& graphics): m_graphics(graphics) {
-		EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+		CHECK(!Common::Thread::IsMainThread());
 	}
 	~FramebufferCache() { KYTY_NOT_IMPLEMENTED; }
 	KYTY_CLASS_NO_COPY(FramebufferCache);

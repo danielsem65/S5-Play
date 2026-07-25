@@ -37,6 +37,7 @@
 #include <windows.h>
 #endif
 
+
 namespace Libs::LibKernel {
 void SetProgName(const std::string& name);
 } // namespace Libs::LibKernel
@@ -135,7 +136,7 @@ static uint64_t AllocateUnresolvedImportThunk(uint64_t record_id) {
 	    g_unresolved_stub_thunk_offset + thunk_size > page_size) {
 		auto page = Common::VirtualMemory::Alloc(0, page_size,
 		                                         Common::VirtualMemory::Mode::ExecuteReadWrite);
-		EXIT_NOT_IMPLEMENTED(page == 0);
+		CHECK(page == 0);
 		g_unresolved_stub_thunk_pages.push_back(page);
 		g_unresolved_stub_thunk_offset = 0;
 	}
@@ -238,7 +239,7 @@ static uint64_t AllocateUnresolvedImportThunk(uint64_t record_id) {
 	emit(0xc0); // xor eax, eax
 	emit(0xc3); // ret
 
-	EXIT_NOT_IMPLEMENTED(i != thunk_size);
+	CHECK(i != thunk_size);
 	std::memcpy(code, bytes, sizeof(bytes));
 	Common::VirtualMemory::FlushInstructionCache(reinterpret_cast<uint64_t>(code), thunk_size);
 	return reinterpret_cast<uint64_t>(code);
@@ -1115,7 +1116,7 @@ static void PatchProgram(Program* program, uint64_t address, uint64_t size) {
 				LOGF("Patch tls at addr: [%016" PRIx64 "]\n", reinterpret_cast<uint64_t>(ptr));
 
 				const auto reg = (modrm >> 3u) & 7u;
-				EXIT_NOT_IMPLEMENTED(reg == 4u);
+				CHECK(reg == 4u);
 
 				auto* code = new (ptr) Jit::Call9;
 				code->SetFunc(reg == 0
@@ -1132,7 +1133,7 @@ static void PatchProgram(Program* program, uint64_t address, uint64_t size) {
 }
 
 uint64_t RuntimeLinker::GetEntry() {
-	// EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+	// CHECK(!Common::Thread::IsMainThread());
 
 	Common::LockGuard lock(m_mutex);
 
@@ -1145,7 +1146,7 @@ uint64_t RuntimeLinker::GetEntry() {
 }
 
 uint64_t RuntimeLinker::GetProcParam() {
-	// EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+	// CHECK(!Common::Thread::IsMainThread());
 
 	Common::LockGuard lock(m_mutex);
 
@@ -1160,7 +1161,7 @@ uint64_t RuntimeLinker::GetProcParam() {
 void RuntimeLinker::DbgDump(const std::string& folder) {
 	KYTY_PROFILER_FUNCTION();
 
-	EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+	CHECK(!Common::Thread::IsMainThread());
 
 	Common::LockGuard lock(m_mutex);
 
@@ -1173,13 +1174,13 @@ void RuntimeLinker::DbgDump(const std::string& folder) {
 		p->elf->DbgDump(folder_str);
 
 		if (p->dynamic_info != nullptr) {
-			EXIT_NOT_IMPLEMENTED(p->dynamic_info->symbol_table_entry_size != 0 &&
+			CHECK(p->dynamic_info->symbol_table_entry_size != 0 &&
 			                     p->dynamic_info->symbol_table_entry_size != sizeof(Elf64_Sym));
-			EXIT_NOT_IMPLEMENTED(p->dynamic_info->rela_table_entry_size != 0 &&
+			CHECK(p->dynamic_info->rela_table_entry_size != 0 &&
 			                     p->dynamic_info->rela_table_entry_size != sizeof(Elf64_Rela));
-			// EXIT_NOT_IMPLEMENTED(p->dynamic_info->jmprela_table == nullptr);
-			// EXIT_NOT_IMPLEMENTED(p->dynamic_info->rela_table == nullptr);
-			// EXIT_NOT_IMPLEMENTED(p->dynamic_info->symbol_table == nullptr);
+			// CHECK(p->dynamic_info->jmprela_table == nullptr);
+			// CHECK(p->dynamic_info->rela_table == nullptr);
+			// CHECK(p->dynamic_info->symbol_table == nullptr);
 
 			if (p->dynamic_info->symbol_table != nullptr) {
 				DbgDumpSymbols(folder_str, p->dynamic_info->symbol_table,
@@ -1208,7 +1209,7 @@ void RuntimeLinker::DbgDump(const std::string& folder) {
 }
 
 void RuntimeLinker::RelocateAll() {
-	// EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+	// CHECK(!Common::Thread::IsMainThread());
 
 	Common::LockGuard lock(m_mutex);
 
@@ -1229,7 +1230,7 @@ void RuntimeLinker::RelocateProgram(Program* program) {
 }
 
 void RuntimeLinker::UnloadProgram(Program* program) {
-	// EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+	// CHECK(!Common::Thread::IsMainThread());
 
 	Common::LockGuard lock(m_mutex);
 
@@ -1247,7 +1248,7 @@ void RuntimeLinker::UnloadProgram(Program* program) {
 }
 
 RuntimeLinker::RuntimeLinker(): m_symbols(std::make_unique<SymbolDatabase>()) {
-	EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+	CHECK(!Common::Thread::IsMainThread());
 }
 
 RuntimeLinker::~RuntimeLinker() {
@@ -1298,7 +1299,7 @@ Program* RuntimeLinker::LoadProgram(const std::filesystem::path& elf_name) {
 }
 
 void RuntimeLinker::SaveMainProgram(const std::filesystem::path& elf_name) {
-	EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+	CHECK(!Common::Thread::IsMainThread());
 
 	Common::LockGuard lock(m_mutex);
 
@@ -1313,7 +1314,7 @@ void RuntimeLinker::SaveMainProgram(const std::filesystem::path& elf_name) {
 }
 
 void RuntimeLinker::SaveProgram(Program* program, const std::filesystem::path& elf_name) {
-	EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+	CHECK(!Common::Thread::IsMainThread());
 
 	Common::LockGuard lock(m_mutex);
 
@@ -1366,7 +1367,7 @@ void RuntimeLinker::Execute() {
 }
 
 void RuntimeLinker::Clear() {
-	// EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+	// CHECK(!Common::Thread::IsMainThread());
 
 	Common::LockGuard lock(m_mutex);
 
@@ -1875,7 +1876,7 @@ void RuntimeLinker::LoadProgramToMemory(Program* program) {
 	bool is_shared   = program->elf->IsShared();
 	bool is_next_gen = program->elf->IsNextGen();
 
-	EXIT_NOT_IMPLEMENTED(!is_shared && !is_next_gen);
+	CHECK(!is_shared && !is_next_gen);
 
 	const auto* ehdr = program->elf->GetEhdr();
 	const auto* phdr = program->elf->GetPhdr();
@@ -2013,20 +2014,20 @@ void RuntimeLinker::ParseProgramDynamicInfo(Program* program) {
 
 	auto* elf = program->elf.get();
 
-	EXIT_NOT_IMPLEMENTED(elf->HasDynValue(DT_OS_HASH) && elf->HasDynValue(DT_HASH));
+	CHECK(elf->HasDynValue(DT_OS_HASH) && elf->HasDynValue(DT_HASH));
 	GetDynDataOs(elf, &program->dynamic_info->hash_table, DT_OS_HASH);
 	GetDynData(elf, program->base_vaddr, &program->dynamic_info->hash_table, DT_HASH);
 	GetDynValue(elf, &program->dynamic_info->hash_table_size, DT_OS_HASHSZ);
 
-	EXIT_NOT_IMPLEMENTED(elf->HasDynValue(DT_OS_STRTAB) && elf->HasDynValue(DT_STRTAB));
-	EXIT_NOT_IMPLEMENTED(elf->HasDynValue(DT_OS_STRSZ) && elf->HasDynValue(DT_STRSZ));
+	CHECK(elf->HasDynValue(DT_OS_STRTAB) && elf->HasDynValue(DT_STRTAB));
+	CHECK(elf->HasDynValue(DT_OS_STRSZ) && elf->HasDynValue(DT_STRSZ));
 	GetDynDataOs(elf, &program->dynamic_info->str_table, DT_OS_STRTAB);
 	GetDynData(elf, program->base_vaddr, &program->dynamic_info->str_table, DT_STRTAB);
 	GetDynValue(elf, &program->dynamic_info->str_table_size, DT_OS_STRSZ);
 	GetDynValue(elf, &program->dynamic_info->str_table_size, DT_STRSZ);
 
-	EXIT_NOT_IMPLEMENTED(elf->HasDynValue(DT_OS_SYMTAB) && elf->HasDynValue(DT_SYMTAB));
-	EXIT_NOT_IMPLEMENTED(elf->HasDynValue(DT_OS_SYMENT) && elf->HasDynValue(DT_SYMENT));
+	CHECK(elf->HasDynValue(DT_OS_SYMTAB) && elf->HasDynValue(DT_SYMTAB));
+	CHECK(elf->HasDynValue(DT_OS_SYMENT) && elf->HasDynValue(DT_SYMENT));
 	GetDynDataOs(elf, &program->dynamic_info->symbol_table, DT_OS_SYMTAB);
 	GetDynData(elf, program->base_vaddr, &program->dynamic_info->symbol_table, DT_SYMTAB);
 	GetDynValue(elf, &program->dynamic_info->symbol_table_total_size, DT_OS_SYMTABSZ);
@@ -2042,26 +2043,26 @@ void RuntimeLinker::ParseProgramDynamicInfo(Program* program) {
 	GetDynValue(elf, &program->dynamic_info->fini_array_size, DT_FINI_ARRAYSZ);
 	GetDynValue(elf, &program->dynamic_info->preinit_array_size, DT_PREINIT_ARRAYSZ);
 
-	EXIT_NOT_IMPLEMENTED(elf->HasDynValue(DT_OS_PLTGOT) && elf->HasDynValue(DT_PLTGOT));
+	CHECK(elf->HasDynValue(DT_OS_PLTGOT) && elf->HasDynValue(DT_PLTGOT));
 	GetDynPtr(elf, &program->dynamic_info->pltgot_vaddr, DT_OS_PLTGOT);
 	GetDynPtr(elf, &program->dynamic_info->pltgot_vaddr, DT_PLTGOT);
 
 	Elf64_Sxword jmprel_type = 0;
-	EXIT_NOT_IMPLEMENTED(elf->HasDynValue(DT_OS_PLTREL) && elf->HasDynValue(DT_PLTREL));
+	CHECK(elf->HasDynValue(DT_OS_PLTREL) && elf->HasDynValue(DT_PLTREL));
 	GetDynValue(elf, &jmprel_type, DT_OS_PLTREL);
 	GetDynValue(elf, &jmprel_type, DT_PLTREL);
 
-	EXIT_NOT_IMPLEMENTED(jmprel_type != DT_RELA);
+	CHECK(jmprel_type != DT_RELA);
 	if (jmprel_type == DT_RELA) {
-		EXIT_NOT_IMPLEMENTED(elf->HasDynValue(DT_OS_JMPREL) && elf->HasDynValue(DT_JMPREL));
-		EXIT_NOT_IMPLEMENTED(elf->HasDynValue(DT_OS_PLTRELSZ) && elf->HasDynValue(DT_PLTRELSZ));
+		CHECK(elf->HasDynValue(DT_OS_JMPREL) && elf->HasDynValue(DT_JMPREL));
+		CHECK(elf->HasDynValue(DT_OS_PLTRELSZ) && elf->HasDynValue(DT_PLTRELSZ));
 		GetDynDataOs(elf, &program->dynamic_info->jmprela_table, DT_OS_JMPREL);
 		GetDynData(elf, program->base_vaddr, &program->dynamic_info->jmprela_table, DT_JMPREL);
 		GetDynValue(elf, &program->dynamic_info->jmprela_table_size, DT_OS_PLTRELSZ);
 		GetDynValue(elf, &program->dynamic_info->jmprela_table_size, DT_PLTRELSZ);
 	}
 
-	EXIT_NOT_IMPLEMENTED(elf->HasDynValue(DT_OS_RELA) && elf->HasDynValue(DT_RELA));
+	CHECK(elf->HasDynValue(DT_OS_RELA) && elf->HasDynValue(DT_RELA));
 	GetDynDataOs(elf, &program->dynamic_info->rela_table, DT_OS_RELA);
 	GetDynData(elf, program->base_vaddr, &program->dynamic_info->rela_table, DT_RELA);
 	GetDynValue(elf, &program->dynamic_info->rela_table_total_size, DT_OS_RELASZ);
@@ -2075,8 +2076,8 @@ void RuntimeLinker::ParseProgramDynamicInfo(Program* program) {
 	GetDynValue(elf, &program->dynamic_info->flags, DT_FLAGS);
 	GetDynValue(elf, &program->dynamic_info->textrel, DT_TEXTREL);
 
-	EXIT_NOT_IMPLEMENTED(program->dynamic_info->debug != 0);
-	EXIT_NOT_IMPLEMENTED(program->dynamic_info->textrel != 0);
+	CHECK(program->dynamic_info->debug != 0);
+	CHECK(program->dynamic_info->textrel != 0);
 
 	std::vector<uint64_t> needed;
 	GetDynValues(elf, &needed, DT_NEEDED);
@@ -2088,13 +2089,13 @@ void RuntimeLinker::ParseProgramDynamicInfo(Program* program) {
 	GetDynValue(elf, &so_name, DT_SONAME);
 	program->dynamic_info->so_name = program->dynamic_info->str_table + so_name;
 
-	EXIT_NOT_IMPLEMENTED(elf->HasDynValue(DT_OS_NEEDED_MODULE) &&
+	CHECK(elf->HasDynValue(DT_OS_NEEDED_MODULE) &&
 	                     elf->HasDynValue(DT_OS_NEEDED_MODULE_1));
-	EXIT_NOT_IMPLEMENTED(elf->HasDynValue(DT_OS_MODULE_INFO) &&
+	CHECK(elf->HasDynValue(DT_OS_MODULE_INFO) &&
 	                     elf->HasDynValue(DT_OS_MODULE_INFO_1));
-	EXIT_NOT_IMPLEMENTED(elf->HasDynValue(DT_OS_IMPORT_LIB) &&
+	CHECK(elf->HasDynValue(DT_OS_IMPORT_LIB) &&
 	                     elf->HasDynValue(DT_OS_IMPORT_LIB_1));
-	EXIT_NOT_IMPLEMENTED(elf->HasDynValue(DT_OS_EXPORT_LIB) &&
+	CHECK(elf->HasDynValue(DT_OS_EXPORT_LIB) &&
 	                     elf->HasDynValue(DT_OS_EXPORT_LIB_1));
 	GetDynModules(elf, &program->dynamic_info->import_modules, program->dynamic_info->str_table,
 	              DT_OS_NEEDED_MODULE);
@@ -2141,7 +2142,7 @@ static void InstallRelocateHandler(Program* program) {
 		auto size = Jit::CallPlt::GetSize(program->custom_call_plt_num);
 		program->custom_call_plt_vaddr =
 		    Common::VirtualMemory::Alloc(SYSTEM_RESERVED, size, Common::VirtualMemory::Mode::Write);
-		EXIT_NOT_IMPLEMENTED(program->custom_call_plt_vaddr == 0);
+		CHECK(program->custom_call_plt_vaddr == 0);
 		auto* code = new (reinterpret_cast<void*>(program->custom_call_plt_vaddr))
 		    Jit::CallPlt(program->custom_call_plt_num);
 		code->SetPltGot(pltgot_vaddr);
@@ -2159,18 +2160,18 @@ void RuntimeLinker::Relocate(Program* program) {
 	if (g_invalid_memory == 0) {
 		g_invalid_memory = Common::VirtualMemory::Alloc(INVALID_MEMORY, 4096,
 		                                                Common::VirtualMemory::Mode::NoAccess);
-		EXIT_NOT_IMPLEMENTED(g_invalid_memory == 0);
+		CHECK(g_invalid_memory == 0);
 	}
 
 	LOGF_COLOR(Log::Color::White, "--- Relocate program: %s ---\n",
 	           Common::PathToString(program->file_name).c_str());
 
-	EXIT_NOT_IMPLEMENTED(program->dynamic_info->symbol_table_entry_size != sizeof(Elf64_Sym));
-	EXIT_NOT_IMPLEMENTED(program->dynamic_info->rela_table_entry_size != sizeof(Elf64_Rela));
-	EXIT_NOT_IMPLEMENTED(program->dynamic_info->jmprela_table == nullptr);
-	EXIT_NOT_IMPLEMENTED(program->dynamic_info->rela_table == nullptr);
-	EXIT_NOT_IMPLEMENTED(program->dynamic_info->symbol_table == nullptr);
-	EXIT_NOT_IMPLEMENTED(program->dynamic_info->pltgot_vaddr == 0);
+	CHECK(program->dynamic_info->symbol_table_entry_size != sizeof(Elf64_Sym));
+	CHECK(program->dynamic_info->rela_table_entry_size != sizeof(Elf64_Rela));
+	CHECK(program->dynamic_info->jmprela_table == nullptr);
+	CHECK(program->dynamic_info->rela_table == nullptr);
+	CHECK(program->dynamic_info->symbol_table == nullptr);
+	CHECK(program->dynamic_info->pltgot_vaddr == 0);
 
 	InstallRelocateHandler(program);
 

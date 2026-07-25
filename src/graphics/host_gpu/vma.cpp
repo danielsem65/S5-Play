@@ -136,7 +136,7 @@ void GraphicContext::CreateBuffer(uint64_t size, VulkanBuffer& buffer) {
 	if (result != vk::Result::eSuccess) {
 		LogMemoryBudget();
 	}
-	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+	CHECK(result != vk::Result::eSuccess);
 
 	device.getBufferMemoryRequirements(buffer.buffer, &buffer.memory.requirements);
 	buffer.memory.type      = buffer.memory.allocation_info.memoryType;
@@ -207,7 +207,7 @@ void GraphicContext::DeleteImage(VulkanImage& image) {
 void GraphicContext::MapMemory(VulkanMemory& memory, void*& data) {
 	KYTY_PROFILER_FUNCTION();
 	EXIT_IF(allocator == nullptr || memory.allocation == nullptr);
-	EXIT_NOT_IMPLEMENTED(static_cast<vk::Result>(vmaMapMemory(allocator, memory.allocation,
+	CHECK(static_cast<vk::Result>(vmaMapMemory(allocator, memory.allocation,
 	                                                          &data)) != vk::Result::eSuccess);
 }
 

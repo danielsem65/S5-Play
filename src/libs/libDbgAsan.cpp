@@ -128,7 +128,7 @@ static void KernelFree(uintptr_t addr, size_t size) {
 static void KYTY_SYSV_ABI asan_init() {
 	PRINT_NAME();
 
-	EXIT_NOT_IMPLEMENTED(g_ctx != nullptr);
+	CHECK(g_ctx != nullptr);
 
 	g_ctx = new AsanContext;
 

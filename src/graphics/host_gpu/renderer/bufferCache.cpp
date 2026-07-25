@@ -510,7 +510,7 @@ BufferCache::BufferCache(GraphicContext& graphics, PageManager& page_manager,
                          ResourceMutex& resource_mutex)
     : m_graphics(graphics), m_memory_tracker(page_manager), m_page_manager(page_manager),
       m_resource_mutex(resource_mutex) {
-	EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+	CHECK(!Common::Thread::IsMainThread());
 	m_readback = std::make_unique<ReadbackWorker>(*this);
 }
 

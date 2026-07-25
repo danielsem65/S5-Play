@@ -64,7 +64,7 @@ public:
 	};
 
 	explicit DescriptorCache(GraphicContext& graphics): m_graphics(graphics) {
-		EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+		CHECK(!Common::Thread::IsMainThread());
 	}
 	~DescriptorCache() { KYTY_NOT_IMPLEMENTED; }
 	KYTY_CLASS_NO_COPY(DescriptorCache);
