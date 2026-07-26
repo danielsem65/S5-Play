@@ -1816,7 +1816,7 @@ KYTY_CP_OP_PARSER(CpOpAcquireMem) {
 	switch (cache_action) {
 		case 0x00000000: {
 			if (custom && gcr_cntl != 0) {
-				LOGF("\t custom acquire_mem GCR-only barrier, gcr_cntl = 0x%08" PRIx32
+				LOGF("\t acquire_mem GCR-only barrier, gcr_cntl = 0x%08" PRIx32
 				     ", base = 0x%016" PRIx64 ", size = 0x%016" PRIx64 "\n",
 				     gcr_cntl, base_lo << 8u, size_lo << 8u);
 
@@ -1830,14 +1830,10 @@ KYTY_CP_OP_PARSER(CpOpAcquireMem) {
 		case 0x00003fc0:
 		case 0x00004000:
 		case 0x00007fc0: {
-			// target_mask set, no CB/DB action bits. Treat as an ordering barrier.
+			// target_mask set, no CB/DB action bits. Ordering barrier.
 			EXIT_IF(target_mask != cache_action);
 			EXIT_IF(extended_action != 0x00000000);
 			EXIT_IF(action != 0x00);
-
-			LOGF("\t temporary: acquire_mem target-mask-only barrier, target_mask = 0x%08" PRIx32
-			     ", gcr_cntl = 0x%08" PRIx32 ", base = 0x%016" PRIx64 ", size = 0x%016" PRIx64 "\n",
-			     target_mask, gcr_cntl, base_lo << 8u, size_lo << 8u);
 
 			cp.MemoryBarrier();
 		} break;
@@ -1849,10 +1845,6 @@ KYTY_CP_OP_PARSER(CpOpAcquireMem) {
 			EXIT_IF(extended_action != 0x02000000);
 			EXIT_IF(action != 0x00);
 
-			LOGF("\t temporary: acquire_mem CB-cache-only barrier, gcr_cntl = 0x%08" PRIx32
-			     ", base = 0x%016" PRIx64 ", size = 0x%016" PRIx64 "\n",
-			     gcr_cntl, base_lo << 8u, size_lo << 8u);
-
 			cp.MemoryBarrier();
 		} break;
 		case 0x04000000: {
@@ -1862,10 +1854,6 @@ KYTY_CP_OP_PARSER(CpOpAcquireMem) {
 			EXIT_IF(target_mask != 0x00000000);
 			EXIT_IF(extended_action != 0x04000000);
 			EXIT_IF(action != 0x00);
-
-			LOGF("\t temporary: acquire_mem DB-cache-only barrier, gcr_cntl = 0x%08" PRIx32
-			     ", base = 0x%016" PRIx64 ", size = 0x%016" PRIx64 "\n",
-			     gcr_cntl, base_lo << 8u, size_lo << 8u);
 
 			cp.MemoryBarrier();
 		} break;
@@ -1877,10 +1865,6 @@ KYTY_CP_OP_PARSER(CpOpAcquireMem) {
 			EXIT_IF(target_mask != 0x00004000 && target_mask != 0x00007FC0);
 			EXIT_IF(extended_action != 0x04000000);
 			EXIT_IF(action != 0x00);
-
-			LOGF("\t temporary: acquire_mem DB target barrier, target_mask = 0x%08" PRIx32
-			     ", gcr_cntl = 0x%08" PRIx32 ", base = 0x%016" PRIx64 ", size = 0x%016" PRIx64 "\n",
-			     target_mask, gcr_cntl, base_lo << 8u, size_lo << 8u);
 
 			if (size_lo != 0) {
 				cp.DepthStencilBarrier(base_lo << 8u, size_lo << 8u);
@@ -1966,11 +1950,12 @@ KYTY_CP_OP_PARSER(CpOpAcquireMem) {
 		case 0x06000080:
 		case 0x06003fc0:
 		case 0x06007fc0: {
-			// target_mask:     0x00000040 (rt0), 0x00000080 (rt1), 0x00003fc0 (all rt), 0x00007fc0
-			// (all rt and depth) extended_action: 0x06000000 (Flush Cb & Db) action:          0x00
-			// (none)
+			// target_mask:     0x00000040 (rt0), 0x00000080 (rt1), 0x00003fc0 (all rt),
+			//                  0x00007fc0 (all rt and depth)
+			// extended_action: 0x06000000 (FlushAndInvalidateCbDbCaches)
+			// action:          0x00 (none)
 			if (gcr_cntl != 0 && gcr_cntl != 0x280 && gcr_cntl != 0x300) {
-				LOGF("\t temporary: acquire_mem CB+DB barrier with unhandled GCR control "
+				LOGF("\t warning: acquire_mem CB+DB barrier with unhandled GCR control "
 				     "0x%08" PRIx32 "\n",
 				     gcr_cntl);
 			}

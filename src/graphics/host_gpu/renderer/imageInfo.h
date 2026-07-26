@@ -294,25 +294,55 @@ struct VideoOutFormatPolicy {
 	VideoOutPixelFormatInfo info;
 };
 
-inline constexpr std::array<VideoOutFormatPolicy, 6> VIDEO_OUT_FORMAT_POLICIES {{
+inline constexpr std::array<VideoOutFormatPolicy, 12> VIDEO_OUT_FORMAT_POLICIES {{
+    // 0: 8-bit sRGB, RGBA component order
     {0x8000000022000000ull,
      {vk::Format::eR8G8B8A8Srgb, Prospero::GpuEnumValue(Prospero::BufferFormat::k8_8_8_8Srgb), 4,
       false}},
+    // 1: 8-bit sRGB, BGRA component order
     {0x8000000000000000ull,
      {vk::Format::eB8G8R8A8Srgb, Prospero::GpuEnumValue(Prospero::BufferFormat::k8_8_8_8Srgb), 4,
       false}},
+    // 2: 8-bit sRGB, component order with swap flag bit set
+    {0x8000000020000000ull,
+     {vk::Format::eB8G8R8A8Srgb, Prospero::GpuEnumValue(Prospero::BufferFormat::k8_8_8_8Srgb), 4,
+      false}},
+    // 3: 8-bit UNorm, RGBA component order
+    {0x8000000022000002ull,
+     {vk::Format::eR8G8B8A8Unorm, Prospero::GpuEnumValue(Prospero::BufferFormat::k8_8_8_8UNorm), 4,
+      false}},
+    // 4: 8-bit UNorm, BGRA component order
+    {0x8000000000000002ull,
+     {vk::Format::eB8G8R8A8Unorm, Prospero::GpuEnumValue(Prospero::BufferFormat::k8_8_8_8UNorm), 4,
+      false}},
+    // 5: 10:10:10:2 UNorm, RGBA component order
     {0x8100000022000000ull,
      {vk::Format::eA2B10G10R10UnormPack32,
       Prospero::GpuEnumValue(Prospero::BufferFormat::k10_10_10_2UNorm), 4, false}},
+    // 6: 10:10:10:2 UNorm, BGRA component order
     {0x8100000000000000ull,
      {vk::Format::eA2R10G10B10UnormPack32,
       Prospero::GpuEnumValue(Prospero::BufferFormat::k10_10_10_2UNorm), 4, false}},
+    // 7: 16-bit float RGBA (64-bit pixel), RGBA component order
     {0xc001000622000000ull,
      {vk::Format::eR16G16B16A16Sfloat,
       Prospero::GpuEnumValue(Prospero::BufferFormat::k16_16_16_16Float), 8, false}},
+    // 8: 16-bit float RGBA (64-bit pixel), BGRA component order (bgra16=true)
     {0xc001000600000000ull,
      {vk::Format::eR16G16B16A16Sfloat,
       Prospero::GpuEnumValue(Prospero::BufferFormat::k16_16_16_16Float), 8, true}},
+    // 9: 16-bit float RGBA (64-bit pixel), RGBA with swap flag
+    {0xc001000620000000ull,
+     {vk::Format::eR16G16B16A16Sfloat,
+      Prospero::GpuEnumValue(Prospero::BufferFormat::k16_16_16_16Float), 8, true}},
+    // 10: A8R8G8B8 (32-bit ARGB), BGRA variant
+    {0x8200000000000000ull,
+     {vk::Format::eB8G8R8A8Srgb, Prospero::GpuEnumValue(Prospero::BufferFormat::k8_8_8_8Srgb), 4,
+      false}},
+    // 11: 8-bit sRGB with different byte order
+    {0x9000000022000000ull,
+     {vk::Format::eR8G8B8A8Srgb, Prospero::GpuEnumValue(Prospero::BufferFormat::k8_8_8_8Srgb), 4,
+      false}},
 }};
 
 [[nodiscard]] inline bool DecodeVideoOutPixelFormat(uint64_t                 pixel_format,
@@ -323,7 +353,40 @@ inline constexpr std::array<VideoOutFormatPolicy, 6> VIDEO_OUT_FORMAT_POLICIES {
 			return true;
 		}
 	}
-	return false;
+	// Fallback: try to parse the 64-bit format descriptor by bitfields.
+	// Bits 56-63: data format class
+	// Bits 48-55: bit depth / per-component width
+	// Bits 32-39: channel count / sub-format
+	// Bits 24-31: component order (0x22 = RGBA, 0x00 or 0x20 = BGRA/swapped)
+	const uint64_t data_class      = (pixel_format >> 56u) & 0xFFu;
+	const uint64_t order           = (pixel_format >> 24u) & 0xFFu;
+	const bool     swapped         = (order != 0x22);
+	switch (data_class) {
+		case 0x80:
+		case 0x90:
+			info.format            = swapped ? vk::Format::eB8G8R8A8Srgb : vk::Format::eR8G8B8A8Srgb;
+			info.guest_format      = Prospero::GpuEnumValue(Prospero::BufferFormat::k8_8_8_8Srgb);
+			info.bytes_per_element = 4;
+			info.bgra16            = false;
+			return true;
+		case 0x81:
+		case 0x91:
+			info.format            = swapped ? vk::Format::eA2R10G10B10UnormPack32
+			                                 : vk::Format::eA2B10G10R10UnormPack32;
+			info.guest_format      = Prospero::GpuEnumValue(Prospero::BufferFormat::k10_10_10_2UNorm);
+			info.bytes_per_element = 4;
+			info.bgra16            = false;
+			return true;
+		case 0xC0:
+		case 0xD0:
+			info.format            = vk::Format::eR16G16B16A16Sfloat;
+			info.guest_format      = Prospero::GpuEnumValue(Prospero::BufferFormat::k16_16_16_16Float);
+			info.bytes_per_element = 8;
+			info.bgra16            = swapped;
+			return true;
+		default:
+			return false;
+	}
 }
 
 [[nodiscard]] inline bool IsSupportedVideoOutFormat(const VideoOutInfo& info) {

@@ -34,7 +34,68 @@ void NormalizeStaticParamsForDynamicState(PipelineStaticParameters& static_param
 	static_params.scissor_ltrb[3] = 1;
 }
 
+static std::filesystem::path GetPipelineCachePath() {
+	return Config::GetSaveDataFolder().parent_path() / "pipeline_cache.bin";
+}
+
 } // namespace
+
+PipelineCache::PipelineCache(GraphicContext& graphics): m_graphics(graphics) {
+	CHECK(!Common::Thread::IsMainThread());
+
+	vk::PipelineCacheCreateInfo cache_info {};
+	cache_info.sType = vk::StructureType::ePipelineCacheCreateInfo;
+
+	// Try to load existing pipeline cache data from disk
+	auto                      cache_path = GetPipelineCachePath();
+	Common::ByteBuffer        cache_data;
+	if (Common::File::IsFileExisting(cache_path)) {
+		Common::File file(cache_path, Common::File::Mode::Read);
+		if (!file.IsInvalid() && file.Size() > 0) {
+			cache_data = file.ReadWholeBuffer();
+			cache_info.initialDataSize = cache_data.Size();
+			cache_info.pInitialData    = cache_data.GetDataConst();
+		}
+	}
+
+	auto result = graphics.device.createPipelineCache(&cache_info, nullptr, &m_vk_pipeline_cache);
+	if (result != vk::Result::eSuccess) {
+		m_vk_pipeline_cache = nullptr;
+		LOGF("PipelineCache: failed to create VkPipelineCache, continuing without it\n");
+	}
+}
+
+PipelineCache::~PipelineCache() {
+	if (m_vk_pipeline_cache == nullptr) {
+		return;
+	}
+
+	// Query pipeline cache size
+	size_t data_size = 0;
+	auto   result    = m_graphics.device.getPipelineCacheData(m_vk_pipeline_cache, &data_size, nullptr);
+	if (result != vk::Result::eSuccess || data_size == 0) {
+		m_graphics.device.destroyPipelineCache(m_vk_pipeline_cache, nullptr);
+		return;
+	}
+
+	// Read pipeline cache data
+	std::vector<uint8_t> cache_data(data_size);
+	result = m_graphics.device.getPipelineCacheData(m_vk_pipeline_cache, &data_size, cache_data.data());
+	if (result != vk::Result::eSuccess) {
+		m_graphics.device.destroyPipelineCache(m_vk_pipeline_cache, nullptr);
+		return;
+	}
+
+	m_graphics.device.destroyPipelineCache(m_vk_pipeline_cache, nullptr);
+
+	// Save to disk
+	auto cache_path = GetPipelineCachePath();
+	Common::File::CreateDirectories(cache_path.parent_path());
+	Common::File file(cache_path, Common::File::Mode::Write);
+	if (!file.IsInvalid()) {
+		file.Write(cache_data.data(), static_cast<uint32_t>(cache_data.size()));
+	}
+}
 
 bool PipelineStaticParameters::operator==(const PipelineStaticParameters& other) const noexcept {
 	return std::memcmp(this, &other, sizeof(*this)) == 0;
@@ -172,7 +233,7 @@ PipelineCache::GraphicsPipeline& PipelineCache::CreateGraphicsPipeline(
 	                 ps_id.crc32);
 	CreatePipelineInternal(*cached, framebuffer.render_pass, vs_input_info, vs_spirv, ps_input_info,
 	                       ps_spirv, static_params, vs_id.hash0, vs_id.crc32, ps_id.hash0,
-	                       ps_id.crc32, ps_active);
+	                       ps_id.crc32, ps_active, m_vk_pipeline_cache);
 	LogPipelineTrace("CreatePipelineInternal done", vs_id.hash0, vs_id.crc32, ps_id.hash0,
 	                 ps_id.crc32);
 
@@ -212,7 +273,7 @@ PipelineCache::CreateComputePipeline(ShaderComputeInputInfo&      input_info,
 	}
 
 	auto cached = std::make_unique<ComputePipeline>(p);
-	CreatePipelineInternal(*cached, input_info, cs_spirv);
+	CreatePipelineInternal(*cached, input_info, cs_spirv, m_vk_pipeline_cache);
 
 	CHECK(cached->pipeline == nullptr);
 	CHECK(cached->pipeline_layout == nullptr);

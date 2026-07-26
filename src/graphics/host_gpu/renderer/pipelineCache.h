@@ -4,6 +4,8 @@
 #include "common/abi.h"
 #include "common/assert.h"
 #include "common/common.h"
+#include "common/emulatorConfig.h"
+#include "common/file.h"
 #include "common/threads.h"
 #include "graphics/host_gpu/renderer/renderTarget.h"
 #include "graphics/host_gpu/vulkanCommon.h"
@@ -84,11 +86,11 @@ static_assert(alignof(PipelineStaticParameters) == 1);
 
 class PipelineCache {
 public:
-	explicit PipelineCache(GraphicContext& graphics): m_graphics(graphics) {
-		CHECK(!Common::Thread::IsMainThread());
-	}
-	~PipelineCache() { KYTY_NOT_IMPLEMENTED; }
+	explicit PipelineCache(GraphicContext& graphics);
+	~PipelineCache();
 	KYTY_CLASS_NO_COPY(PipelineCache);
+
+	[[nodiscard]] vk::PipelineCache VkPipelineCache() const { return m_vk_pipeline_cache; }
 
 	struct Pipeline {
 		vk::PipelineLayout pipeline_layout = nullptr;
@@ -177,7 +179,8 @@ private:
 		}
 	};
 
-	GraphicContext& m_graphics;
+	GraphicContext&  m_graphics;
+	vk::PipelineCache m_vk_pipeline_cache = nullptr;
 	std::unordered_map<GraphicsPipelineKey, std::unique_ptr<GraphicsPipeline>,
 	                   GraphicsPipelineKeyHash>
 	    m_graphics_pipelines;
@@ -195,10 +198,11 @@ void CreatePipelineInternal(PipelineCache::GraphicsPipeline& pipeline, vk::Rende
                             std::span<const uint32_t>       ps_shader,
                             const PipelineStaticParameters& static_params, uint32_t vs_hash0,
                             uint32_t vs_crc32, uint32_t ps_hash0, uint32_t ps_crc32,
-                            bool ps_active);
+                            bool ps_active, vk::PipelineCache pipeline_cache);
 void CreatePipelineInternal(PipelineCache::ComputePipeline& pipeline,
                             const ShaderComputeInputInfo&   input_info,
-                            std::span<const uint32_t>       cs_shader);
+                            std::span<const uint32_t>       cs_shader,
+                            vk::PipelineCache               pipeline_cache);
 
 } // namespace Libs::Graphics
 
