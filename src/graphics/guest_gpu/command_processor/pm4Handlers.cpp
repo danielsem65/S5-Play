@@ -951,7 +951,7 @@ KYTY_HW_CTX_PARSER(HwCtxSetModeControl) {
 	return 1;
 }
 
-static void HwCtxSetPolyOffsetRegister(HardwareContext& ctx, uint32_t cmd_offset, uint32_t value) {
+static void HwCtxSetPolyOffsetRegister(HW::Context& ctx, uint32_t cmd_offset, uint32_t value) {
 	auto offset = ctx.GetPolyOffset();
 	switch (cmd_offset) {
 	case Pm4::PA_SU_POLY_OFFSET_FRONT_SCALE:
