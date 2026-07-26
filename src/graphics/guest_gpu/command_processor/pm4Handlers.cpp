@@ -3035,6 +3035,29 @@ KYTY_CP_OP_PARSER(CpOpReleaseMem) {
 	return 7;
 }
 
+KYTY_CP_OP_PARSER(CpOpSurfaceSync) {
+	KYTY_PROFILER_FUNCTION();
+
+	uint32_t coher_cntl   = buffer[0];
+	uint64_t coher_size   = buffer[1];
+	uint64_t coher_base   = buffer[2] | (static_cast<uint64_t>(buffer[3]) << 32u);
+	uint32_t coher_status = buffer[4];
+
+	cp.MemoryBarrier();
+
+	if (coher_cntl & 0x3fffu) {
+		cp.SynchronizeGpu();
+	}
+
+	return KYTY_PM4_LEN(cmd_id) - 1;
+}
+
+KYTY_CP_OP_PARSER(CpOpContextControl) {
+	KYTY_PROFILER_FUNCTION();
+
+	return KYTY_PM4_LEN(cmd_id) - 1;
+}
+
 KYTY_CP_OP_PARSER(CpOpSetContextReg) {
 	KYTY_PROFILER_FUNCTION();
 
