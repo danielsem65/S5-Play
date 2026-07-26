@@ -89,7 +89,7 @@ public:
 	QString                shader_log_folder           = "_Shaders";
 	bool                   command_buffer_dump_enabled = false;
 	QString                command_buffer_dump_folder  = "_Buffers";
-	LogDirection           printf_direction            = LogDirection::Silent;
+	LogDirection           printf_direction            = LogDirection::Console;
 	QString                printf_output_file          = "_kyty.txt";
 	ProfilerDirection      profiler_direction          = ProfilerDirection::None;
 	bool                   renderdoc_enabled           = false;
