@@ -22,8 +22,10 @@
 #include "libs/libs.h"
 
 #include <algorithm>
+#include <atomic>
 #include <limits>
 #include <list>
+#include <thread>
 #include <vector>
 
 namespace Libs::Graphics {
@@ -34,6 +36,12 @@ namespace Libs::VideoOut {
 
 
 LIB_NAME("VideoOut", "VideoOut");
+
+static std::thread       g_vblank_thread;
+static std::atomic<bool> g_vblank_stop_requested {false};
+static std::atomic<bool> g_vblank_started {false};
+static std::atomic<bool> g_vblank_pacing_disabled {false};
+static std::atomic<uint64_t> g_last_flip_pacing_timestamp {0};
 
 namespace EventQueue = LibKernel::EventQueue;
 
@@ -239,6 +247,81 @@ private:
 
 static VideoOutContext* g_video_out_context = nullptr;
 
+// Vblank background thread: fires vblank events at the display refresh rate
+// so games that park on vblank event queues keep advancing even when the GPU
+// pipeline is backpressured or no flips are being submitted.
+static void VblankTickLoop() {
+	uint64_t next = Common::Timer::QueryPerformanceCounter();
+	while (!g_vblank_stop_requested.load(std::memory_order_relaxed)) {
+		const uint64_t frequency = Common::Timer::QueryPerformanceFrequency();
+		const uint64_t period    = frequency / Config::GetVblankFrequency();
+		next += period;
+
+		if (g_video_out_context != nullptr) {
+			g_video_out_context->VblankBegin();
+			g_video_out_context->VblankEnd();
+		}
+
+		uint64_t now = Common::Timer::QueryPerformanceCounter();
+		if (next < now) {
+			next = now;
+		}
+
+		const uint64_t wait_ticks = (next > now) ? (next - now) : 0;
+		if (wait_ticks > 0) {
+			const uint64_t wait_micros = (wait_ticks * 1000000u) / frequency;
+			if (wait_micros > 0) {
+				Common::Thread::SleepMicro(
+				    static_cast<uint32_t>(std::min<uint64_t>(wait_micros, UINT32_MAX)));
+			}
+		}
+	}
+}
+
+static void StartVblankThreadOnce() {
+	if (g_vblank_started.load(std::memory_order_acquire)) {
+		return;
+	}
+	bool expected = false;
+	if (g_vblank_started.compare_exchange_strong(expected, true, std::memory_order_acq_rel)) {
+		g_vblank_stop_requested.store(false, std::memory_order_relaxed);
+		g_vblank_thread = std::thread(VblankTickLoop);
+		g_vblank_thread.detach();
+	}
+}
+
+// Emulates the display flip cadence: hardware completes flips at the requested
+// rate, which paces the game's main loop. Without this the guest runs as fast
+// as the GPU pipeline drains, so frame delivery is bursty and animation
+// judders. When the emulator runs slower than the target rate the sleep never
+// engages.
+static void PaceFlip() {
+	if (g_vblank_pacing_disabled.load(std::memory_order_relaxed)) {
+		return;
+	}
+
+	const uint64_t frequency      = Common::Timer::QueryPerformanceFrequency();
+	const uint64_t interval_ticks = frequency / Config::GetVblankFrequency();
+	const uint64_t now            = Common::Timer::QueryPerformanceCounter();
+
+	uint64_t last   = g_last_flip_pacing_timestamp.load(std::memory_order_relaxed);
+	uint64_t target = last + interval_ticks;
+
+	if (target <= now) {
+		g_last_flip_pacing_timestamp.store(now, std::memory_order_relaxed);
+		return;
+	}
+
+	const uint64_t wait_ticks  = target - now;
+	const uint64_t wait_micros = (wait_ticks * 1000000u) / frequency;
+	if (wait_micros > 0) {
+		Common::Thread::SleepMicro(
+		    static_cast<uint32_t>(std::min<uint64_t>(wait_micros, UINT32_MAX)));
+	}
+
+	g_last_flip_pacing_timestamp.store(target, std::memory_order_relaxed);
+}
+
 using VideoOutEventQueues = std::vector<EventQueue::KernelEqueue>;
 
 static uintptr_t VideoOutEventId(VideoOutEventKind kind) {
@@ -398,34 +481,6 @@ static int DeleteVideoOutEvent(int handle, EventQueue::KernelEqueue eq, VideoOut
 	}
 	return EventQueue::KernelDeleteEvent(eq, VideoOutEventId(kind),
 	                                     EventQueue::KERNEL_EVFILT_VIDEO_OUT);
-}
-
-static void WaitForNextVblank() {
-	static uint64_t next_vblank_ticks = 0;
-
-	const uint64_t frequency = Common::Timer::QueryPerformanceFrequency();
-	const uint64_t period    = frequency / Config::GetVblankFrequency();
-	uint64_t       now       = Common::Timer::QueryPerformanceCounter();
-
-	if (next_vblank_ticks == 0) {
-		next_vblank_ticks = now;
-	}
-
-	if (now < next_vblank_ticks) {
-		const uint64_t wait_ticks  = next_vblank_ticks - now;
-		const uint64_t wait_micros = (wait_ticks * 1000000u) / frequency;
-
-		if (wait_micros > 0) {
-			Common::Thread::SleepMicro(
-			    static_cast<uint32_t>(std::min<uint64_t>(wait_micros, UINT32_MAX)));
-		}
-
-		now = Common::Timer::QueryPerformanceCounter();
-	}
-
-	do {
-		next_vblank_ticks += period;
-	} while (next_vblank_ticks <= now);
 }
 
 static bool IsFlipDue(VideoOutConfig& cfg) {
@@ -953,7 +1008,8 @@ void FlipQueue::GetFlipStatus(VideoOutConfig& cfg, VideoOutFlipStatus& out) {
 bool VideoOutFlipWindow(uint32_t micros) {
 	EXIT_IF(g_video_out_context == nullptr);
 
-	WaitForNextVblank();
+	StartVblankThreadOnce();
+	PaceFlip();
 
 	return g_video_out_context->GetFlipQueue().Flip(micros);
 }
@@ -961,13 +1017,14 @@ bool VideoOutFlipWindow(uint32_t micros) {
 void VideoOutBeginVblank() {
 	EXIT_IF(g_video_out_context == nullptr);
 
-	g_video_out_context->VblankBegin();
+	// The dedicated vblank thread fires VblankBegin/VblankEnd at the display
+	// rate independently of the flip pipeline.  Games that park on vblank
+	// event queues keep advancing even when no flips are submitted.
+	StartVblankThreadOnce();
 }
 
 void VideoOutEndVblank() {
-	EXIT_IF(g_video_out_context == nullptr);
-
-	g_video_out_context->VblankEnd();
+	// No-op — the vblank thread handles VblankEnd autonomously.
 }
 
 KYTY_SYSV_ABI int VideoOutOpen(int user_id, int bus_type, int index, const void* param) {
@@ -1516,8 +1573,10 @@ KYTY_SYSV_ABI int VideoOutWaitVblank(int handle) {
 		return VIDEO_OUT_ERROR_INVALID_HANDLE;
 	}
 
-	WaitForNextVblank();
-	g_video_out_context->VblankEnd();
+	// Block until the next vblank period. The background vblank thread fires
+	// VblankEnd events independently, so we only need to pace the wait.
+	const uint64_t period_us = (1000000u / Config::GetVblankFrequency());
+	Common::Thread::SleepMicro(static_cast<uint32_t>(period_us));
 
 	return OK;
 }
