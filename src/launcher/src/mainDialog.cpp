@@ -316,11 +316,16 @@ void MainDialog::RunInterpreter(QProcess* process, const Configuration& info) {
 	}
 #else
 	{
+		auto quoteArg = [](const QString& s) {
+			return s.contains(' ') || s.contains('\t') ? QStringLiteral("\"") + s + QStringLiteral("\"") : s;
+		};
+		QStringList native_args;
+		native_args << QStringLiteral("/K") << quoteArg(interpreter);
+		for (const auto& a : args) {
+			native_args << quoteArg(a);
+		}
 		process->setProgram(CMD_EXE);
-		QStringList process_args;
-		process_args << QStringLiteral("/K") << interpreter;
-		process_args += args;
-		process->setArguments(process_args);
+		process->setNativeArguments(native_args.join(QChar(' ')));
 	}
 #endif
 	process->setWorkingDirectory(dir.path());
