@@ -3038,10 +3038,7 @@ KYTY_CP_OP_PARSER(CpOpReleaseMem) {
 KYTY_CP_OP_PARSER(CpOpSurfaceSync) {
 	KYTY_PROFILER_FUNCTION();
 
-	uint32_t coher_cntl   = buffer[0];
-	uint64_t coher_size   = buffer[1];
-	uint64_t coher_base   = buffer[2] | (static_cast<uint64_t>(buffer[3]) << 32u);
-	uint32_t coher_status = buffer[4];
+	uint32_t coher_cntl = buffer[0];
 
 	cp.MemoryBarrier();
 
